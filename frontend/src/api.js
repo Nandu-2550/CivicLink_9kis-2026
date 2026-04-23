@@ -1,11 +1,19 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
+if (import.meta.env.PROD && !API_BASE) {
+  throw new Error(
+    "Missing VITE_API_BASE_URL. Set it in Vercel/Render environment variables to your backend HTTPS URL."
+  );
+}
+
+const EFFECTIVE_BASE = API_BASE || "http://localhost:5000";
 
 async function apiFetch(path, { token, method, body, isForm } = {}) {
   const headers = {};
   if (!isForm) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${EFFECTIVE_BASE}${path}`, {
     method: method || (body ? "POST" : "GET"),
     headers,
     body: body ? (isForm ? body : JSON.stringify(body)) : undefined
