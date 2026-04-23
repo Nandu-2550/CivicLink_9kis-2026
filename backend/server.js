@@ -14,7 +14,7 @@ const authorityRoutes = require("./routes/authority");
 
 const app = express();
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 
