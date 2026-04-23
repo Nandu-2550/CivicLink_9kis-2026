@@ -14,6 +14,67 @@ const CATEGORIES = [
 
 const STAGES = ["Submitted", "In Review", "Assigned", "In Progress", "Resolved"];
 
+// New status stepper for multi-step complaint progress
+const STATUS_STEPS = ["Pending", "Under Review", "In Progress", "Resolved"];
+
+function StatusStepper({ currentStatus }) {
+  const activeIdx = Math.max(0, STATUS_STEPS.indexOf(currentStatus));
+  
+  const getStatusColor = (step, idx) => {
+    if (idx <= activeIdx) {
+      if (step === "Resolved") return "bg-emerald-400/15 border-emerald-300/30 text-emerald-100";
+      if (step === "In Progress") return "bg-orange-400/15 border-orange-300/30 text-orange-100";
+      return "bg-cyan-400/15 border-cyan-300/30 text-cyan-100";
+    }
+    return "bg-white/5 border-white/10 text-slate-300";
+  };
+  
+  return (
+    <div className="mt-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {STATUS_STEPS.map((s, idx) => {
+          const done = idx <= activeIdx;
+          return (
+            <div key={s} className="flex items-center gap-2">
+              <div
+                className={[
+                  "h-8 w-8 rounded-full grid place-items-center text-xs border",
+                  getStatusColor(s, idx)
+                ].join(" ")}
+                title={s}
+              >
+                {idx + 1}
+              </div>
+              {idx !== STATUS_STEPS.length - 1 && (
+                <div className={done ? "h-px w-8 bg-cyan-300/30" : "h-px w-8 bg-white/10"} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 text-xs text-slate-400">
+        Status: <span className="text-slate-100">{currentStatus || "Pending"}</span>
+      </div>
+    </div>
+  );
+}
+
+// Resolution proof display component
+function ResolutionProof({ proofUrl }) {
+  if (!proofUrl) return null;
+  
+  return (
+    <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-400/5 p-4">
+      <div className="text-sm font-semibold text-emerald-100 mb-2">Authority Resolution Proof</div>
+      <img 
+        src={proofUrl} 
+        alt="Resolution proof" 
+        className="max-h-48 rounded-lg border border-white/10"
+      />
+    </div>
+  );
+}
+
 function CameraModal({ open, onClose, onCapture }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -455,6 +516,8 @@ function CitizenApp({ token }) {
                 </div>
                 <div className="mt-2 text-sm text-slate-300">{c.description}</div>
                 <StageTimeline currentStage={c.currentStage} />
+                <StatusStepper currentStatus={c.status} />
+                <ResolutionProof proofUrl={c.resolutionProof} />
               </div>
             ))
           )}
@@ -511,6 +574,8 @@ function AuthorityApp({ token, authority }) {
   const [loading, setLoading] = useState(true);
   const [stageDraft, setStageDraft] = useState({});
   const [noteDraft, setNoteDraft] = useState({});
+  const [statusDraft, setStatusDraft] = useState({});
+  const [proofFile, setProofFile] = useState({});
 
   async function load() {
     setErr("");
@@ -532,6 +597,13 @@ function AuthorityApp({ token, authority }) {
 
   async function update(id) {
     await api.updateStage(token, id, stageDraft[id] || "In Review", noteDraft[id] || "");
+    await load();
+  }
+
+  async function updateStatus(id) {
+    const file = proofFile[id];
+    await api.updateStatus(token, id, statusDraft[id] || "Pending", noteDraft[id] || "", file);
+    setProofFile((s) => ({ ...s, [id]: null }));
     await load();
   }
 
@@ -568,23 +640,57 @@ function AuthorityApp({ token, authority }) {
               </div>
               <div className="mt-2 text-sm text-slate-300">{c.description}</div>
               <StageTimeline currentStage={c.currentStage} />
+              <StatusStepper currentStatus={c.status} />
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <select className="input" value={stageDraft[c._id] || c.currentStage} onChange={(e) => setStageDraft((s) => ({ ...s, [c._id]: e.target.value }))}>
-                  {STAGES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <input className="input sm:col-span-2" placeholder="Note (optional)" value={noteDraft[c._id] || ""} onChange={(e) => setNoteDraft((s) => ({ ...s, [c._id]: e.target.value }))} />
-              </div>
+              {/* Resolution proof upload for authorities */}
+              {c.status === "In Progress" && (
+                <div className="mt-4 grid gap-3">
+                  <div className="text-xs text-slate-400">Update Status (required for resolution proof)</div>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <select 
+                      className="input" 
+                      value={statusDraft[c._id] || c.status || "Pending"} 
+                      onChange={(e) => setStatusDraft((s) => ({ ...s, [c._id]: e.target.value }))}
+                    >
+                      {STATUS_STEPS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                    <input className="input sm:col-span-1" placeholder="Note (optional)" value={noteDraft[c._id] || ""} onChange={(e) => setNoteDraft((s) => ({ ...s, [c._id]: e.target.value }))} />
+                  </div>
+                  
+                  {/* Resolution proof file input - show only when status is Resolved */}
+                  {(statusDraft[c._id] || c.status) === "Resolved" && (
+                    <div className="flex items-center gap-3">
+                      <label className="btn cursor-pointer select-none text-sm">
+                        Upload Proof Photo
+                        <input
+                          className="hidden"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setProofFile((s) => ({ ...s, [c._id]: e.target.files?.[0] || null }))}
+                        />
+                      </label>
+                      <span className="text-xs text-slate-400">
+                        {proofFile[c._id]?.name || (c.resolutionProof ? "Photo uploaded" : "No file chosen")}
+                      </span>
+                    </div>
+                  )}
 
-              <div className="mt-3 flex justify-end">
-                <button className="btn btn-primary" onClick={() => update(c._id).catch(() => {})} type="button">
-                  Update Stage
-                </button>
-              </div>
+                  <div className="flex justify-end">
+                    <button className="btn btn-primary" onClick={() => updateStatus(c._id).catch(() => {})} type="button">
+                      Update Status
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Show existing resolution proof */}
+              {c.resolutionProof && (
+                <ResolutionProof proofUrl={c.resolutionProof} />
+              )}
             </div>
           ))}
         </div>

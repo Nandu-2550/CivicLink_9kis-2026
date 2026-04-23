@@ -34,5 +34,15 @@ export const api = {
   myComplaints: (token) => apiFetch("/api/complaints/mine", { token }),
   authorityComplaints: (token) => apiFetch("/api/authority/complaints", { token }),
   updateStage: (token, id, stage, note) =>
-    apiFetch(`/api/authority/complaints/${id}/stage`, { token, method: "PATCH", body: { stage, note } })
+    apiFetch(`/api/authority/complaints/${id}/stage`, { token, method: "PATCH", body: { stage, note } }),
+  // Status update for authorities
+  updateStatus: (token, id, status, note, file) => {
+    const form = new FormData();
+    form.append("status", status);
+    if (note) form.append("note", note);
+    if (file) form.append("resolutionProof", file);
+    return apiFetch(`/api/complaints/${id}/status`, { token, method: "PUT", body: form, isForm: true });
+  },
+  // Get single complaint details
+  getComplaint: (token, id) => apiFetch(`/api/complaints/${id}`, { token })
 };

@@ -11,6 +11,7 @@ const { connectDb } = require("./config/db");
 const authRoutes = require("./routes/auth");
 const complaintRoutes = require("./routes/complaints");
 const authorityRoutes = require("./routes/authority");
+const notificationRoutes = require("./routes/notifications");
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.get("/api/health", (req, res) => res.json({ ok: true, name: "CivicLink" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/complaints", complaintRoutes);
 app.use("/api/authority", authorityRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use((req, res) => res.status(404).json({ message: "Not found" }));
 

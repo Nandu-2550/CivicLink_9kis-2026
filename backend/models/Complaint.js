@@ -9,6 +9,14 @@ const timelineItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const statusHistorySchema = new mongoose.Schema(
+  {
+    step: { type: String, required: true },
+    date: { type: Date, default: Date.now }
+  },
+  { _id: false }
+);
+
 const complaintSchema = new mongoose.Schema(
   {
     citizen: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
@@ -35,7 +43,18 @@ const complaintSchema = new mongoose.Schema(
     },
     attachmentUrl: { type: String, default: "" },
     currentStage: { type: String, required: true, default: "Submitted", index: true },
-    timeline: { type: [timelineItemSchema], default: () => [{ stage: "Submitted", note: "Complaint filed" }] }
+    timeline: { type: [timelineItemSchema], default: () => [{ stage: "Submitted", note: "Complaint filed" }] },
+    status: {
+      type: String,
+      enum: ["Pending", "Under Review", "In Progress", "Resolved"],
+      default: "Pending",
+      index: true
+    },
+    statusHistory: {
+      type: [statusHistorySchema],
+      default: () => [{ step: "Pending", date: new Date() }]
+    },
+    resolutionProof: { type: String, default: "" }
   },
   { timestamps: true }
 );
