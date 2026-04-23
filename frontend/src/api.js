@@ -1,12 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+import { API_BASE_URL } from './api/config';
 
-if (import.meta.env.PROD && !API_BASE) {
-  throw new Error(
-    "Missing VITE_API_BASE_URL. Set it in Vercel/Render environment variables to your backend HTTPS URL."
-  );
-}
-
-const EFFECTIVE_BASE = API_BASE || "http://localhost:5000";
+const EFFECTIVE_BASE = API_BASE_URL;
 
 async function apiFetch(path, { token, method, body, isForm } = {}) {
   const headers = {};
