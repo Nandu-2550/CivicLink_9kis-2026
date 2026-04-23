@@ -18,7 +18,10 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 
-const uploadsDir = path.join(process.cwd(), process.env.UPLOAD_DIR || "uploads");
+const uploadsDir = process.env.VERCEL 
+  ? path.join("/tmp", process.env.UPLOAD_DIR || "uploads") 
+  : path.join(process.cwd(), process.env.UPLOAD_DIR || "uploads");
+
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 app.use("/uploads", express.static(uploadsDir));
 
@@ -29,13 +32,14 @@ app.use("/api/authority", authorityRoutes);
 
 app.use((req, res) => res.status(404).json({ message: "Not found" }));
 
-async function start() {
-  await connectDb(process.env.MONGO_URI);
+// Connect to MongoDB
+connectDb(process.env.MONGO_URI).catch((err) => console.error("Database connection failed:", err.message));
+
+// Only run app.listen if NOT deployed on Vercel
+if (!process.env.VERCEL) {
   const port = Number(process.env.PORT || 5000);
   app.listen(port, () => console.log(`CivicLink API running on http://localhost:${port}`));
 }
 
-start().catch((err) => {
-  console.error("Failed to start server:", err.message);
-  process.exit(1);
-});
+// Export the Express app for Vercel Serverless Functions
+module.exports = app;
