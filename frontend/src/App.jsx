@@ -207,6 +207,9 @@ function CameraModal({ open, onClose, onCapture }) {
 
 
 function TopBar({ mode, setMode, who, onLogout }) {
+  // Only show TopBar when user is logged in
+  if (!who) return null;
+  
   return (
     <div className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/50 backdrop-blur-xl">
       <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between gap-3">
@@ -219,23 +222,10 @@ function TopBar({ mode, setMode, who, onLogout }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {who ? (
-            <>
-              <div className="hidden sm:block text-xs text-slate-200 glass rounded-xl px-3 py-2">{who}</div>
-              <button className="btn" onClick={onLogout} type="button">
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <button className={mode === "citizen" ? "btn btn-primary" : "btn"} onClick={() => setMode("citizen")} type="button">
-                Citizen
-              </button>
-              <button className={mode === "authority" ? "btn btn-primary" : "btn"} onClick={() => setMode("authority")} type="button">
-                Authority
-              </button>
-            </>
-          )}
+          <div className="hidden sm:block text-xs text-slate-200 glass rounded-xl px-3 py-2">{who}</div>
+          <button className="btn" onClick={onLogout} type="button">
+            Logout
+          </button>
         </div>
       </div>
     </div>
@@ -266,33 +256,110 @@ function CitizenAuth({ onAuthed }) {
   }
 
   return (
-    <div className="glass rounded-2xl p-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-xl font-semibold">Citizen Access</div>
-          <div className="text-sm text-slate-400">JWT Sign-up / Login</div>
-        </div>
-        <div className="flex gap-2">
-          <button className={tab === "login" ? "btn btn-primary" : "btn"} onClick={() => setTab("login")} type="button">
-            Login
-          </button>
-          <button className={tab === "signup" ? "btn btn-primary" : "btn"} onClick={() => setTab("signup")} type="button">
-            Signup
-          </button>
-        </div>
+    <div className="glass-card rounded-2xl p-8 animate-fade-in">
+      {/* Header */}
+      <div className="text-center mb-6">
+        <h2 className="text-3xl font-bold gradient-text mb-2">
+          {tab === "login" ? "Welcome back, Citizen" : "Join CivicLink"}
+        </h2>
+        <p className="text-white/70 text-sm">
+          {tab === "login" 
+            ? "Sign in to track and manage your complaints" 
+            : "Create your account to start making a difference"}
+        </p>
       </div>
 
-      <form className="mt-5 space-y-3" onSubmit={submit}>
+      {/* Tab Switcher */}
+      <div className="flex gap-2 mb-6 p-1 rounded-xl bg-white/5">
+        <button 
+          className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all duration-300 ${
+            tab === "login" 
+              ? "bg-gradient-to-r from-[#b0c4de]/20 to-[#d8bfd8]/20 text-white shadow-lg" 
+              : "text-white/50 hover:text-white/70"
+          }`}
+          onClick={() => setTab("login")} 
+          type="button"
+        >
+          Login
+        </button>
+        <button 
+          className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all duration-300 ${
+            tab === "signup" 
+              ? "bg-gradient-to-r from-[#b0c4de]/20 to-[#d8bfd8]/20 text-white shadow-lg" 
+              : "text-white/50 hover:text-white/70"
+          }`}
+          onClick={() => setTab("signup")} 
+          type="button"
+        >
+          Sign Up
+        </button>
+      </div>
+
+      {/* Form */}
+      <form className="space-y-4" onSubmit={submit}>
         {tab === "signup" && (
-          <input className="input" placeholder="Full name" value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
+          <div className="animate-fade-in">
+            <label className="text-xs text-white/50 mb-2 block">Full Name</label>
+            <input 
+              className="input" 
+              placeholder="Enter your full name"
+              value={form.name} 
+              onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} 
+            />
+          </div>
         )}
-        <input className="input" placeholder="Email" value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} />
-        <input className="input" placeholder="Password (min 6 chars)" type="password" value={form.password} onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))} />
-        {err && <div className="text-sm text-red-300">{err}</div>}
-        <button className="btn btn-primary w-full" disabled={loading} type="submit">
-          {loading ? "Please wait..." : tab === "login" ? "Login" : "Create account"}
+        
+        <div>
+          <label className="text-xs text-white/50 mb-2 block">Email Address</label>
+          <input 
+            className="input" 
+            type="email"
+            placeholder="your.email@example.com"
+            value={form.email} 
+            onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} 
+          />
+        </div>
+        
+        <div>
+          <label className="text-xs text-white/50 mb-2 block">Password</label>
+          <input 
+            className="input" 
+            type="password"
+            placeholder="Minimum 6 characters"
+            value={form.password} 
+            onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))} 
+          />
+        </div>
+
+        {err && (
+          <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-3 animate-fade-in">
+            {err}
+          </div>
+        )}
+        
+        <button 
+          className="btn btn-primary w-full mt-6 glow-effect" 
+          disabled={loading} 
+          type="submit"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Processing...
+            </span>
+          ) : (
+            tab === "login" ? "Sign In" : "Create Account"
+          )}
         </button>
       </form>
+
+      {/* Footer Note */}
+      <div className="mt-6 text-center text-xs text-white/40">
+        <p>Secure authentication powered by JWT</p>
+      </div>
     </div>
   );
 }
@@ -502,17 +569,39 @@ function CitizenApp({ token, user }) {
       </div>
 
       <div className="glass rounded-2xl p-6 lg:col-span-3">
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex items-end justify-between gap-3 mb-6">
           <div>
             <div className="text-xl font-semibold">My Complaints</div>
-            <div className="text-sm text-slate-400">5-stage progress timeline</div>
+            <div className="text-sm text-slate-400">Track and manage your submissions</div>
           </div>
           <button className="btn" onClick={() => loadMine().catch(() => {})} type="button">
             Refresh
           </button>
         </div>
 
-        <div className="mt-5 grid gap-4">
+        {/* Statistics Cards */}
+        {complaints.length > 0 && (
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="stat-card text-center">
+              <div className="text-3xl font-bold text-[#b0c4de] mb-1">{complaints.length}</div>
+              <div className="text-xs text-white/50">Total</div>
+            </div>
+            <div className="stat-card text-center">
+              <div className="text-3xl font-bold text-orange-400 mb-1">
+                {complaints.filter(c => c.status === "Pending" || c.status === "Under Review" || c.status === "In Progress").length}
+              </div>
+              <div className="text-xs text-white/50">Pending</div>
+            </div>
+            <div className="stat-card text-center">
+              <div className="text-3xl font-bold text-emerald-400 mb-1">
+                {complaints.filter(c => c.status === "Resolved").length}
+              </div>
+              <div className="text-xs text-white/50">Resolved</div>
+            </div>
+          </div>
+        )}
+
+        <div className="grid gap-4">
           {complaints.length === 0 ? (
             <div className="text-sm text-slate-400">No complaints yet.</div>
           ) : (
@@ -596,14 +685,21 @@ function AuthorityAuth({ onAuthed }) {
   };
 
   return (
-    <div className="glass rounded-2xl p-6">
-      <div className="text-xl font-semibold">Authority Login</div>
-      <div className="text-sm text-slate-400 mt-1">Select your department category</div>
+    <div className="glass-card rounded-2xl p-8 animate-fade-in">
+      {/* Header */}
+      <div className="text-center mb-6">
+        <h2 className="text-3xl font-bold gradient-text mb-2">
+          Authority Access Portal
+        </h2>
+        <p className="text-white/70 text-sm">
+          Secure access for government officials
+        </p>
+      </div>
       
-      <form className="mt-5 space-y-4" onSubmit={submit}>
-        {/* Stylish Category Grid */}
+      <form className="space-y-5" onSubmit={submit}>
+        {/* Category Selection */}
         <div>
-          <label className="text-xs text-slate-400 mb-2 block">Department Category</label>
+          <label className="text-xs text-white/50 mb-3 block">Department Category</label>
           <div className="grid grid-cols-2 gap-2">
             {CATEGORIES.map((c) => {
               const isSelected = form.category === c;
@@ -613,10 +709,10 @@ function AuthorityAuth({ onAuthed }) {
                   type="button"
                   onClick={() => setForm((s) => ({ ...s, category: c }))}
                   className={`
-                    flex items-center gap-2 px-3 py-3 rounded-xl border text-sm font-medium transition-all duration-200
+                    flex items-center gap-2 px-3 py-3 rounded-xl border text-sm font-medium transition-all duration-300
                     ${isSelected 
-                      ? 'bg-cyan-400/20 border-cyan-300/40 text-cyan-100 shadow-lg shadow-cyan-500/20 scale-105' 
-                      : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20'
+                      ? 'bg-gradient-to-r from-[#b0c4de]/20 to-[#d8bfd8]/20 border-[#b0c4de]/40 text-white shadow-lg scale-105' 
+                      : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:border-white/20 hover:text-white/80'
                     }
                   `}
                 >
@@ -630,7 +726,7 @@ function AuthorityAuth({ onAuthed }) {
 
         {/* Secret Code Input */}
         <div>
-          <label className="text-xs text-slate-400 mb-2 block">Secret Code</label>
+          <label className="text-xs text-white/50 mb-2 block">Secret Code</label>
           <input 
             className="input" 
             placeholder="Enter your authority secret code"
@@ -640,11 +736,35 @@ function AuthorityAuth({ onAuthed }) {
           />
         </div>
 
-        {err && <div className="text-sm text-red-300">{err}</div>}
-        <button className="btn btn-primary w-full" disabled={loading} type="submit">
-          {loading ? "Please wait..." : "Login to Dashboard"}
+        {err && (
+          <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-3 animate-fade-in">
+            {err}
+          </div>
+        )}
+        
+        <button 
+          className="btn btn-primary w-full glow-effect" 
+          disabled={loading} 
+          type="submit"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Authenticating...
+            </span>
+          ) : (
+            "Access Dashboard"
+          )}
         </button>
       </form>
+
+      {/* Security Note */}
+      <div className="mt-6 text-center text-xs text-white/40">
+        <p>🔒 Authorized personnel only • All access is logged</p>
+      </div>
     </div>
   );
 }
@@ -726,7 +846,28 @@ function AuthorityApp({ token, authority }) {
       ) : complaints.length === 0 ? (
         <div className="mt-6 text-sm text-slate-400">No complaints for this category.</div>
       ) : (
-        <div className="mt-5 grid gap-4">
+        <>
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-3 gap-4 mt-6 mb-6">
+            <div className="stat-card text-center">
+              <div className="text-3xl font-bold text-[#b0c4de] mb-1">{complaints.length}</div>
+              <div className="text-xs text-white/50">Total Received</div>
+            </div>
+            <div className="stat-card text-center">
+              <div className="text-3xl font-bold text-orange-400 mb-1">
+                {complaints.filter(c => c.status !== "Resolved").length}
+              </div>
+              <div className="text-xs text-white/50">Pending Action</div>
+            </div>
+            <div className="stat-card text-center">
+              <div className="text-3xl font-bold text-emerald-400 mb-1">
+                {complaints.filter(c => c.status === "Resolved").length}
+              </div>
+              <div className="text-xs text-white/50">Resolved</div>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
           {complaints.map((c) => (
             <div key={c._id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -803,6 +944,7 @@ function AuthorityApp({ token, authority }) {
             </div>
           ))}
         </div>
+        </>
       )}
     </div>
   );
@@ -810,6 +952,8 @@ function AuthorityApp({ token, authority }) {
 
 export default function App() {
   const [mode, setMode] = useState("citizen");
+  const [activeView, setActiveView] = useState("landing"); // 'landing', 'citizen_login', 'authority_login'
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [citizen, setCitizen] = useState(() => {
     const raw = localStorage.getItem("civiclink_citizen");
     return raw ? JSON.parse(raw) : null;
@@ -826,6 +970,38 @@ export default function App() {
     localStorage.removeItem("civiclink_authority");
     setCitizen(null);
     setAuthority(null);
+    setActiveView("landing");
+  }
+
+  function handleModeSelect(selectedMode) {
+    if (isTransitioning) return;
+    
+    setIsTransitioning(true);
+    setMode(selectedMode);
+    
+    // Wait for fade out animation, then switch view
+    setTimeout(() => {
+      setActiveView(selectedMode === "citizen" ? "citizen_login" : "authority_login");
+      
+      // Reset transition flag after animation completes
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 500);
+    }, 300);
+  }
+
+  function handleBackToLanding() {
+    if (isTransitioning) return;
+    
+    setIsTransitioning(true);
+    
+    setTimeout(() => {
+      setActiveView("landing");
+      
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 500);
+    }, 300);
   }
 
   return (
@@ -834,101 +1010,147 @@ export default function App() {
       <div className="mx-auto max-w-6xl px-4 py-10">
         {!citizen && !authority ? (
           <div className="max-w-7xl mx-auto">
-            {/* Hero Section */}
-            <div className="text-center mb-8">
-              <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-cyan-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">
+            {/* Enhanced Hero Section - Always visible but adapts */}
+            <div className={`text-center transition-all duration-700 ${
+              activeView !== "landing" ? "mb-8" : "mb-12"
+            }`}>
+              <h1 className={`font-bold mb-4 gradient-text transition-all duration-700 ${
+                activeView !== "landing" 
+                  ? "text-4xl md:text-5xl" 
+                  : "text-5xl md:text-6xl animate-fade-in"
+              }`}>
                 Welcome to CivicLink
               </h1>
-              <p className="text-lg text-slate-300 max-w-2xl mx-auto">
-                Your voice matters. File complaints, track progress, and make a difference in your community.
-              </p>
+              {activeView === "landing" && (
+                <>
+                  <p className="text-2xl md:text-3xl font-semibold text-white mb-3 animate-fade-in stagger-1">
+                    Your Voice, Your City
+                  </p>
+                  <p className="text-lg text-white/60 max-w-3xl mx-auto leading-relaxed animate-fade-in stagger-2">
+                    Report issues, track progress, and help build a better community quickly and transparently.
+                    <br className="hidden md:block" />
+                    Making Civic Engagement Simple and Effective.
+                  </p>
+                </>
+              )}
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-12">
-              {/* Left Column - Info Cards */}
-              <div className="lg:col-span-7 space-y-4">
-                {/* Main Feature Card */}
-                <div className="glass rounded-2xl p-6">
-                  <div className="text-2xl font-semibold leading-tight mb-3">🎯 File complaints. Auto-route them. Track progress.</div>
-                  <div className="text-sm text-slate-300 mb-4">
-                    AI-powered keyword routing assigns one of 8 authority categories. Authorities see only their department and can update stages in real-time.
+            {/* Landing View - Cards and Features */}
+            {activeView === "landing" && (
+              <div className="animate-fade-in">
+                {/* Selection Cards */}
+                <div className="grid md:grid-cols-2 gap-6 mb-12 max-w-5xl mx-auto">
+                  {/* Citizen Box */}
+                  <div 
+                    className="glass-card rounded-2xl p-8 cursor-pointer transition-all duration-500 hover:scale-105 hover:shadow-2xl group"
+                    onClick={() => handleModeSelect("citizen")}
+                  >
+                    <div className="text-center">
+                      <div className="text-7xl mb-6 transform transition-transform duration-300 group-hover:scale-110">👤</div>
+                      <h3 className="text-3xl font-bold text-white mb-4">For Citizens</h3>
+                      <p className="text-white/60 mb-8 leading-relaxed text-lg">
+                        Raise complaints, upload evidence, and track the status of your reports in real-time.
+                      </p>
+                      <button className="btn btn-primary w-full glow-effect text-lg py-4">
+                        Get Started →
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {CATEGORIES.map((c) => (
-                      <span key={c} className="text-xs rounded-full border border-cyan-300/20 bg-cyan-400/10 text-cyan-100 px-3 py-1">
-                        {c}
-                      </span>
-                    ))}
+
+                  {/* Authority Box */}
+                  <div 
+                    className="glass-card rounded-2xl p-8 cursor-pointer transition-all duration-500 hover:scale-105 hover:shadow-2xl group"
+                    onClick={() => handleModeSelect("authority")}
+                  >
+                    <div className="text-center">
+                      <div className="text-7xl mb-6 transform transition-transform duration-300 group-hover:scale-110">🏛️</div>
+                      <h3 className="text-3xl font-bold text-white mb-4">For Authorities</h3>
+                      <p className="text-white/60 mb-8 leading-relaxed text-lg">
+                        Manage and resolve complaints efficiently with our streamlined dashboard.
+                      </p>
+                      <button className="btn btn-primary w-full glow-effect text-lg py-4">
+                        Access Portal →
+                      </button>
+                    </div>
                   </div>
+                </div>
+
+                {/* Features Grid */}
+                <div className="mt-16 grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                  <div className="glass-card rounded-xl p-6 text-center hover:scale-105 transition-all duration-300">
+                    <div className="text-5xl mb-4">📍</div>
+                    <h4 className="text-lg font-semibold text-white mb-2">GPS Location Tagging</h4>
+                    <p className="text-sm text-white/50">Automatically detect and tag complaint locations</p>
+                  </div>
+                  <div className="glass-card rounded-xl p-6 text-center hover:scale-105 transition-all duration-300">
+                    <div className="text-5xl mb-4">📸</div>
+                    <h4 className="text-lg font-semibold text-white mb-2">Photo Evidence</h4>
+                    <p className="text-sm text-white/50">Upload photos from camera or gallery</p>
+                  </div>
+                  <div className="glass-card rounded-xl p-6 text-center hover:scale-105 transition-all duration-300">
+                    <div className="text-5xl mb-4">📊</div>
+                    <h4 className="text-lg font-semibold text-white mb-2">Real-time Tracking</h4>
+                    <p className="text-sm text-white/50">Monitor progress from submission to resolution</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Citizen Login - Only show when selected */}
+            {activeView === "citizen_login" && (
+              <div className="animate-slide-up-in max-w-lg mx-auto">
+                <div className="mb-6">
+                  <button 
+                    className="btn btn-ghost text-sm"
+                    onClick={handleBackToLanding}
+                    disabled={isTransitioning}
+                  >
+                    ← Back to options
+                  </button>
                 </div>
                 
-                {/* About & How It Works - Side by Side */}
-                <div className="grid md:grid-cols-2 gap-4">
-                  {/* About This Website */}
-                  <div className="glass rounded-2xl p-5">
-                    <div className="text-lg font-semibold mb-2 flex items-center gap-2">
-                      <span className="text-2xl">📋</span>
-                      <span>About CivicLink</span>
-                    </div>
-                    <div className="text-xs text-slate-300 space-y-2 leading-relaxed">
-                      <p>
-                        A modern citizen grievance platform bridging the gap between citizens and government authorities for transparent, efficient complaint resolution.
-                      </p>
-                      <div className="pt-2 border-t border-white/10">
-                        <span className="text-slate-400 font-semibold">Features:</span> AI routing • Real-time tracking • GPS tagging • Photo uploads
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* How It Works */}
-                  <div className="glass rounded-2xl p-5">
-                    <div className="text-lg font-semibold mb-2 flex items-center gap-2">
-                      <span className="text-2xl">⚙️</span>
-                      <span>How It Works</span>
-                    </div>
-                    <div className="space-y-2 text-xs text-slate-300">
-                      <div className="flex gap-2 items-start">
-                        <span className="flex-shrink-0 h-5 w-5 rounded-full bg-cyan-400/20 grid place-items-center text-[10px] font-bold text-cyan-100">1</span>
-                        <span><strong className="text-slate-100">File:</strong> Submit complaint with photo & GPS</span>
-                      </div>
-                      <div className="flex gap-2 items-start">
-                        <span className="flex-shrink-0 h-5 w-5 rounded-full bg-cyan-400/20 grid place-items-center text-[10px] font-bold text-cyan-100">2</span>
-                        <span><strong className="text-slate-100">Route:</strong> AI auto-assigns to correct department</span>
-                      </div>
-                      <div className="flex gap-2 items-start">
-                        <span className="flex-shrink-0 h-5 w-5 rounded-full bg-orange-400/20 grid place-items-center text-[10px] font-bold text-orange-100">3</span>
-                        <span><strong className="text-slate-100">Action:</strong> Authority reviews & updates status</span>
-                      </div>
-                      <div className="flex gap-2 items-start">
-                        <span className="flex-shrink-0 h-5 w-5 rounded-full bg-emerald-400/20 grid place-items-center text-[10px] font-bold text-emerald-100">4</span>
-                        <span><strong className="text-slate-100">Track:</strong> Monitor progress in real-time</span>
-                      </div>
-                    </div>
-                  </div>
+                <CitizenAuth
+                  onAuthed={(data) => {
+                    localStorage.setItem("civiclink_citizen", JSON.stringify(data));
+                    setCitizen(data);
+                  }}
+                />
+                
+                <div className="mt-6 text-center">
+                  <p className="text-xs text-white/40">
+                    🔒 Secure authentication • Your data is protected
+                  </p>
                 </div>
               </div>
+            )}
 
-              {/* Right Column - Auth Forms */}
-              <div className="lg:col-span-5">
-                <div className="sticky top-24">
-                  {mode === "citizen" ? (
-                    <CitizenAuth
-                      onAuthed={(data) => {
-                        localStorage.setItem("civiclink_citizen", JSON.stringify(data));
-                        setCitizen(data);
-                      }}
-                    />
-                  ) : (
-                    <AuthorityAuth
-                      onAuthed={(data) => {
-                        localStorage.setItem("civiclink_authority", JSON.stringify(data));
-                        setAuthority(data);
-                      }}
-                    />
-                  )}
+            {/* Authority Login - Only show when selected */}
+            {activeView === "authority_login" && (
+              <div className="animate-slide-up-in max-w-lg mx-auto">
+                <div className="mb-6">
+                  <button 
+                    className="btn btn-ghost text-sm"
+                    onClick={handleBackToLanding}
+                    disabled={isTransitioning}
+                  >
+                    ← Back to options
+                  </button>
+                </div>
+                
+                <AuthorityAuth
+                  onAuthed={(data) => {
+                    localStorage.setItem("civiclink_authority", JSON.stringify(data));
+                    setAuthority(data);
+                  }}
+                />
+                
+                <div className="mt-6 text-center">
+                  <p className="text-xs text-white/40">
+                    🔐 Authorized personnel only • All access is monitored
+                  </p>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         ) : citizen ? (
           <CitizenApp token={citizen.token} />
