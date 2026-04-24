@@ -19,7 +19,15 @@ const STAGES = ["Submitted", "In Review", "Assigned", "In Progress", "Resolved"]
 const STATUS_STEPS = ["Pending", "Under Review", "In Progress", "Resolved"];
 
 function StatusStepper({ currentStatus }) {
+  const statusPercentages = {
+    "Pending": 20,
+    "Under Review": 40,
+    "In Progress": 70,
+    "Resolved": 100
+  };
+  
   const activeIdx = Math.max(0, STATUS_STEPS.indexOf(currentStatus));
+  const progressPercent = statusPercentages[currentStatus] || 20;
   
   const getStatusColor = (step, idx) => {
     if (idx <= activeIdx) {
@@ -32,6 +40,15 @@ function StatusStepper({ currentStatus }) {
   
   return (
     <div className="mt-3">
+      {/* Progress Bar */}
+      <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-3">
+        <div 
+          className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 transition-all duration-500 ease-out rounded-full"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+      
+      {/* Step Indicators */}
       <div className="flex flex-wrap items-center gap-2">
         {STATUS_STEPS.map((s, idx) => {
           const done = idx <= activeIdx;
@@ -55,6 +72,7 @@ function StatusStepper({ currentStatus }) {
       </div>
       <div className="mt-2 text-xs text-slate-400">
         Status: <span className="text-slate-100">{currentStatus || "Pending"}</span>
+        <span className="ml-2 text-cyan-300">({progressPercent}%)</span>
       </div>
     </div>
   );
@@ -186,37 +204,7 @@ function CameraModal({ open, onClose, onCapture }) {
   );
 }
 
-function StageTimeline({ currentStage }) {
-  const activeIdx = Math.max(0, STAGES.indexOf(currentStage));
-  return (
-    <div className="mt-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {STAGES.map((s, idx) => {
-          const done = idx <= activeIdx;
-          return (
-            <div key={s} className="flex items-center gap-2">
-              <div
-                className={[
-                  "h-8 w-8 rounded-full grid place-items-center text-xs border",
-                  done ? "bg-cyan-400/15 border-cyan-300/30 text-cyan-100" : "bg-white/5 border-white/10 text-slate-300"
-                ].join(" ")}
-                title={s}
-              >
-                {idx + 1}
-              </div>
-              {idx !== STAGES.length - 1 && (
-                <div className={done ? "h-px w-10 bg-cyan-300/30" : "h-px w-10 bg-white/10"} />
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-2 text-xs text-slate-400">
-        Current: <span className="text-slate-100">{currentStage}</span>
-      </div>
-    </div>
-  );
-}
+
 
 function TopBar({ mode, setMode, who, onLogout }) {
   return (
@@ -309,7 +297,7 @@ function CitizenAuth({ onAuthed }) {
   );
 }
 
-function CitizenApp({ token }) {
+function CitizenApp({ token, user }) {
   const [gps, setGps] = useState({ lat: null, lng: null, accuracyM: null, updatedAt: null, status: "idle" });
   const [file, setFile] = useState(null);
   const [form, setForm] = useState({ title: "", description: "" });
@@ -321,6 +309,7 @@ function CitizenApp({ token }) {
   const cameraInputRef = useRef(null);
   const gpsWatchIdRef = useRef(null);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState({});
 
   const predicted = useMemo(() => {
     const d = (form.description || "").toLowerCase();
@@ -407,6 +396,24 @@ function CitizenApp({ token }) {
       setErr(ex.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleStatusUpdate(complaintId, newStatus) {
+    setStatusUpdating((prev) => ({ ...prev, [complaintId]: true }));
+    try {
+      await api.updateStatus(token, complaintId, newStatus, "");
+      // Update local state immediately for instant UI feedback
+      setComplaints((prev) =>
+        prev.map((c) =>
+          c._id === complaintId ? { ...c, status: newStatus } : c
+        )
+      );
+      setMsg(`Status updated to ${newStatus}`);
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setStatusUpdating((prev) => ({ ...prev, [complaintId]: false }));
     }
   }
 
@@ -516,8 +523,38 @@ function CitizenApp({ token }) {
                   <div className="text-xs rounded-full border border-white/10 bg-white/5 px-3 py-1">{c.category}</div>
                 </div>
                 <div className="mt-2 text-sm text-slate-300">{c.description}</div>
-                <StageTimeline currentStage={c.currentStage} />
                 <StatusStepper currentStatus={c.status} />
+                
+                {/* Authority-only Status Update Panel */}
+                {user?.role === 'authority' && (
+                  <div className="mt-4 p-4 rounded-xl border border-cyan-500/30 bg-cyan-400/5">
+                    <div className="text-sm font-semibold text-cyan-100 mb-3">Authority Status Controls</div>
+                    <div className="grid gap-2 sm:grid-cols-4">
+                      <button
+                        className="btn text-xs"
+                        disabled={c.status === "Under Review" || statusUpdating[c._id]}
+                        onClick={() => handleStatusUpdate(c._id, "Under Review")}
+                      >
+                        {statusUpdating[c._id] ? "Updating..." : "Mark as Under Review"}
+                      </button>
+                      <button
+                        className="btn text-xs"
+                        disabled={c.status === "In Progress" || statusUpdating[c._id]}
+                        onClick={() => handleStatusUpdate(c._id, "In Progress")}
+                      >
+                        {statusUpdating[c._id] ? "Updating..." : "Mark as In Progress"}
+                      </button>
+                      <button
+                        className="btn btn-primary text-xs"
+                        disabled={c.status === "Resolved" || statusUpdating[c._id]}
+                        onClick={() => handleStatusUpdate(c._id, "Resolved")}
+                      >
+                        {statusUpdating[c._id] ? "Updating..." : "Mark as Resolved"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
                 <ResolutionProof proofUrl={c.resolutionProof} />
               </div>
             ))
@@ -577,6 +614,7 @@ function AuthorityApp({ token, authority }) {
   const [noteDraft, setNoteDraft] = useState({});
   const [statusDraft, setStatusDraft] = useState({});
   const [proofFile, setProofFile] = useState({});
+  const [statusUpdating, setStatusUpdating] = useState({});
 
   async function load() {
     setErr("");
@@ -606,6 +644,23 @@ function AuthorityApp({ token, authority }) {
     await api.updateStatus(token, id, statusDraft[id] || "Pending", noteDraft[id] || "", file);
     setProofFile((s) => ({ ...s, [id]: null }));
     await load();
+  }
+
+  async function quickStatusUpdate(id, newStatus) {
+    setStatusUpdating((prev) => ({ ...prev, [id]: true }));
+    try {
+      await api.updateStatus(token, id, newStatus, "");
+      // Update local state immediately for instant UI feedback
+      setComplaints((prev) =>
+        prev.map((c) =>
+          c._id === id ? { ...c, status: newStatus } : c
+        )
+      );
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setStatusUpdating((prev) => ({ ...prev, [id]: false }));
+    }
   }
 
   return (
@@ -640,33 +695,42 @@ function AuthorityApp({ token, authority }) {
                 <div className="text-slate-500">{c.citizen?.email || "no email"}</div>
               </div>
               <div className="mt-2 text-sm text-slate-300">{c.description}</div>
-              <StageTimeline currentStage={c.currentStage} />
               <StatusStepper currentStatus={c.status} />
 
-              {/* Resolution proof upload for authorities */}
-              {c.status === "In Progress" && (
-                <div className="mt-4 grid gap-3">
-                  <div className="text-xs text-slate-400">Update Status (required for resolution proof)</div>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    <select 
-                      className="input" 
-                      value={statusDraft[c._id] || c.status || "Pending"} 
-                      onChange={(e) => setStatusDraft((s) => ({ ...s, [c._id]: e.target.value }))}
-                    >
-                      {STATUS_STEPS.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                    <input className="input sm:col-span-1" placeholder="Note (optional)" value={noteDraft[c._id] || ""} onChange={(e) => setNoteDraft((s) => ({ ...s, [c._id]: e.target.value }))} />
-                  </div>
-                  
-                  {/* Resolution proof file input - show only when status is Resolved */}
-                  {(statusDraft[c._id] || c.status) === "Resolved" && (
+              {/* Authority Status Update Panel */}
+              <div className="mt-4 p-4 rounded-xl border border-cyan-500/30 bg-cyan-400/5">
+                <div className="text-sm font-semibold text-cyan-100 mb-3">Status Update</div>
+                <div className="grid gap-2 sm:grid-cols-4">
+                  <button
+                    className="btn text-xs"
+                    disabled={c.status === "Under Review" || statusUpdating[c._id]}
+                    onClick={() => quickStatusUpdate(c._id, "Under Review")}
+                  >
+                    {statusUpdating[c._id] ? "Updating..." : "Mark as Under Review"}
+                  </button>
+                  <button
+                    className="btn text-xs"
+                    disabled={c.status === "In Progress" || statusUpdating[c._id]}
+                    onClick={() => quickStatusUpdate(c._id, "In Progress")}
+                  >
+                    {statusUpdating[c._id] ? "Updating..." : "Mark as In Progress"}
+                  </button>
+                  <button
+                    className="btn btn-primary text-xs"
+                    disabled={c.status === "Resolved" || statusUpdating[c._id]}
+                    onClick={() => quickStatusUpdate(c._id, "Resolved")}
+                  >
+                    {statusUpdating[c._id] ? "Updating..." : "Mark as Resolved"}
+                  </button>
+                </div>
+                
+                {/* Resolution proof upload - show when marking as Resolved */}
+                {c.status === "In Progress" && (
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <div className="text-xs text-slate-400 mb-2">Upload Resolution Proof (optional)</div>
                     <div className="flex items-center gap-3">
                       <label className="btn cursor-pointer select-none text-sm">
-                        Upload Proof Photo
+                        Choose Photo
                         <input
                           className="hidden"
                           type="file"
@@ -675,18 +739,19 @@ function AuthorityApp({ token, authority }) {
                         />
                       </label>
                       <span className="text-xs text-slate-400">
-                        {proofFile[c._id]?.name || (c.resolutionProof ? "Photo uploaded" : "No file chosen")}
+                        {proofFile[c._id]?.name || "No file chosen"}
                       </span>
+                      <button 
+                        className="btn btn-primary text-xs" 
+                        onClick={() => updateStatus(c._id).catch(() => {})}
+                        disabled={!proofFile[c._id]}
+                      >
+                        Upload & Update
+                      </button>
                     </div>
-                  )}
-
-                  <div className="flex justify-end">
-                    <button className="btn btn-primary" onClick={() => updateStatus(c._id).catch(() => {})} type="button">
-                      Update Status
-                    </button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Show existing resolution proof */}
               {c.resolutionProof && (
