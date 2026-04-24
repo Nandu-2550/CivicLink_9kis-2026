@@ -584,22 +584,65 @@ function AuthorityAuth({ onAuthed }) {
     }
   }
 
+  const categoryIcons = {
+    "Police": "🚔",
+    "School/University": "🎓",
+    "Municipality": "🏛️",
+    "Consumer/Cyber": "🔒",
+    "Human Rights": "⚖️",
+    "Govt Dept": "📋",
+    "Traffic": "🚦",
+    "Pollution": "🌿"
+  };
+
   return (
     <div className="glass rounded-2xl p-6">
       <div className="text-xl font-semibold">Authority Login</div>
-      <div className="text-sm text-slate-400 mt-1">Category + Secret Code</div>
-      <form className="mt-5 space-y-3" onSubmit={submit}>
-        <select className="input" value={form.category} onChange={(e) => setForm((s) => ({ ...s, category: e.target.value }))}>
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <input className="input" placeholder="Secret code" value={form.secretCode} onChange={(e) => setForm((s) => ({ ...s, secretCode: e.target.value }))} />
+      <div className="text-sm text-slate-400 mt-1">Select your department category</div>
+      
+      <form className="mt-5 space-y-4" onSubmit={submit}>
+        {/* Stylish Category Grid */}
+        <div>
+          <label className="text-xs text-slate-400 mb-2 block">Department Category</label>
+          <div className="grid grid-cols-2 gap-2">
+            {CATEGORIES.map((c) => {
+              const isSelected = form.category === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setForm((s) => ({ ...s, category: c }))}
+                  className={`
+                    flex items-center gap-2 px-3 py-3 rounded-xl border text-sm font-medium transition-all duration-200
+                    ${isSelected 
+                      ? 'bg-cyan-400/20 border-cyan-300/40 text-cyan-100 shadow-lg shadow-cyan-500/20 scale-105' 
+                      : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20'
+                    }
+                  `}
+                >
+                  <span className="text-lg">{categoryIcons[c]}</span>
+                  <span className="text-xs">{c}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Secret Code Input */}
+        <div>
+          <label className="text-xs text-slate-400 mb-2 block">Secret Code</label>
+          <input 
+            className="input" 
+            placeholder="Enter your authority secret code"
+            type="password"
+            value={form.secretCode} 
+            onChange={(e) => setForm((s) => ({ ...s, secretCode: e.target.value }))} 
+          />
+        </div>
+
         {err && <div className="text-sm text-red-300">{err}</div>}
         <button className="btn btn-primary w-full" disabled={loading} type="submit">
-          {loading ? "Please wait..." : "Login"}
+          {loading ? "Please wait..." : "Login to Dashboard"}
         </button>
       </form>
     </div>
@@ -790,94 +833,102 @@ export default function App() {
       <TopBar mode={mode} setMode={setMode} who={who} onLogout={logout} />
       <div className="mx-auto max-w-6xl px-4 py-10">
         {!citizen && !authority ? (
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="space-y-4">
-              <div className="glass rounded-2xl p-6">
-                <div className="text-3xl font-semibold leading-tight">File complaints. Auto-route them. Track progress.</div>
-                <div className="mt-3 text-slate-300">
-                  Keyword routing assigns one of 8 authority categories. Authorities see only their department and can update stages.
+          <div className="max-w-7xl mx-auto">
+            {/* Hero Section */}
+            <div className="text-center mb-8">
+              <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-cyan-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">
+                Welcome to CivicLink
+              </h1>
+              <p className="text-lg text-slate-300 max-w-2xl mx-auto">
+                Your voice matters. File complaints, track progress, and make a difference in your community.
+              </p>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-12">
+              {/* Left Column - Info Cards */}
+              <div className="lg:col-span-7 space-y-4">
+                {/* Main Feature Card */}
+                <div className="glass rounded-2xl p-6">
+                  <div className="text-2xl font-semibold leading-tight mb-3">🎯 File complaints. Auto-route them. Track progress.</div>
+                  <div className="text-sm text-slate-300 mb-4">
+                    AI-powered keyword routing assigns one of 8 authority categories. Authorities see only their department and can update stages in real-time.
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.map((c) => (
+                      <span key={c} className="text-xs rounded-full border border-cyan-300/20 bg-cyan-400/10 text-cyan-100 px-3 py-1">
+                        {c}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {CATEGORIES.map((c) => (
-                    <span key={c} className="text-xs rounded-full border border-white/10 bg-white/5 px-3 py-1">
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              
-              {/* About This Website */}
-              <div className="glass rounded-2xl p-6">
-                <div className="text-xl font-semibold mb-3">📋 About This Website</div>
-                <div className="text-sm text-slate-300 space-y-2">
-                  <p>
-                    CivicLink is a modern citizen grievance redressal platform that bridges the gap between citizens and government authorities. 
-                    Our mission is to make civic complaint filing transparent, efficient, and trackable.
-                  </p>
-                  <p>
-                    Whether it's a pothole, pollution issue, traffic problem, or any civic concern, CivicLink ensures your voice reaches the right department 
-                    and you can track the resolution progress in real-time.
-                  </p>
-                  <div className="mt-3 pt-3 border-t border-white/10">
-                    <div className="text-xs text-slate-400">
-                      <strong className="text-slate-200">Key Features:</strong> AI-powered category routing • Real-time status tracking • 
-                      GPS location tagging • Photo evidence upload • Authority dashboard • Transparent progress monitoring
+                
+                {/* About & How It Works - Side by Side */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  {/* About This Website */}
+                  <div className="glass rounded-2xl p-5">
+                    <div className="text-lg font-semibold mb-2 flex items-center gap-2">
+                      <span className="text-2xl">📋</span>
+                      <span>About CivicLink</span>
+                    </div>
+                    <div className="text-xs text-slate-300 space-y-2 leading-relaxed">
+                      <p>
+                        A modern citizen grievance platform bridging the gap between citizens and government authorities for transparent, efficient complaint resolution.
+                      </p>
+                      <div className="pt-2 border-t border-white/10">
+                        <span className="text-slate-400 font-semibold">Features:</span> AI routing • Real-time tracking • GPS tagging • Photo uploads
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* How It Works */}
+                  <div className="glass rounded-2xl p-5">
+                    <div className="text-lg font-semibold mb-2 flex items-center gap-2">
+                      <span className="text-2xl">⚙️</span>
+                      <span>How It Works</span>
+                    </div>
+                    <div className="space-y-2 text-xs text-slate-300">
+                      <div className="flex gap-2 items-start">
+                        <span className="flex-shrink-0 h-5 w-5 rounded-full bg-cyan-400/20 grid place-items-center text-[10px] font-bold text-cyan-100">1</span>
+                        <span><strong className="text-slate-100">File:</strong> Submit complaint with photo & GPS</span>
+                      </div>
+                      <div className="flex gap-2 items-start">
+                        <span className="flex-shrink-0 h-5 w-5 rounded-full bg-cyan-400/20 grid place-items-center text-[10px] font-bold text-cyan-100">2</span>
+                        <span><strong className="text-slate-100">Route:</strong> AI auto-assigns to correct department</span>
+                      </div>
+                      <div className="flex gap-2 items-start">
+                        <span className="flex-shrink-0 h-5 w-5 rounded-full bg-orange-400/20 grid place-items-center text-[10px] font-bold text-orange-100">3</span>
+                        <span><strong className="text-slate-100">Action:</strong> Authority reviews & updates status</span>
+                      </div>
+                      <div className="flex gap-2 items-start">
+                        <span className="flex-shrink-0 h-5 w-5 rounded-full bg-emerald-400/20 grid place-items-center text-[10px] font-bold text-emerald-100">4</span>
+                        <span><strong className="text-slate-100">Track:</strong> Monitor progress in real-time</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* How It Works */}
-              <div className="glass rounded-2xl p-6">
-                <div className="text-xl font-semibold mb-3">⚙️ How It Works</div>
-                <div className="space-y-3 text-sm text-slate-300">
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-cyan-400/15 border border-cyan-300/30 grid place-items-center text-xs font-semibold text-cyan-100">1</div>
-                    <div>
-                      <div className="font-semibold text-slate-100">File Your Complaint</div>
-                      <div className="text-xs text-slate-400">Sign in as a citizen and submit your complaint with title, description, and optional photo evidence. GPS location is auto-detected.</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-cyan-400/15 border border-cyan-300/30 grid place-items-center text-xs font-semibold text-cyan-100">2</div>
-                    <div>
-                      <div className="font-semibold text-slate-100">AI Auto-Routing</div>
-                      <div className="text-xs text-slate-400">Our intelligent system analyzes your complaint description and automatically routes it to the correct authority category (Police, Municipality, Traffic, etc.).</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-orange-400/15 border border-orange-300/30 grid place-items-center text-xs font-semibold text-orange-100">3</div>
-                    <div>
-                      <div className="font-semibold text-slate-100">Authority Takes Action</div>
-                      <div className="text-xs text-slate-400">Government authorities access their dashboard, review complaints in their department, and update the status as they work on resolution.</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-emerald-400/15 border border-emerald-300/30 grid place-items-center text-xs font-semibold text-emerald-100">4</div>
-                    <div>
-                      <div className="font-semibold text-slate-100">Track Progress in Real-Time</div>
-                      <div className="text-xs text-slate-400">Monitor your complaint's journey through 4 stages: Pending → Under Review → In Progress → Resolved. Get transparency at every step.</div>
-                    </div>
-                  </div>
+              {/* Right Column - Auth Forms */}
+              <div className="lg:col-span-5">
+                <div className="sticky top-24">
+                  {mode === "citizen" ? (
+                    <CitizenAuth
+                      onAuthed={(data) => {
+                        localStorage.setItem("civiclink_citizen", JSON.stringify(data));
+                        setCitizen(data);
+                      }}
+                    />
+                  ) : (
+                    <AuthorityAuth
+                      onAuthed={(data) => {
+                        localStorage.setItem("civiclink_authority", JSON.stringify(data));
+                        setAuthority(data);
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             </div>
-
-            {mode === "citizen" ? (
-              <CitizenAuth
-                onAuthed={(data) => {
-                  localStorage.setItem("civiclink_citizen", JSON.stringify(data));
-                  setCitizen(data);
-                }}
-              />
-            ) : (
-              <AuthorityAuth
-                onAuthed={(data) => {
-                  localStorage.setItem("civiclink_authority", JSON.stringify(data));
-                  setAuthority(data);
-                }}
-              />
-            )}
           </div>
         ) : citizen ? (
           <CitizenApp token={citizen.token} />
