@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
+import { API_BASE_URL } from './api/config';
 
 const CATEGORIES = [
   "Police",
@@ -740,7 +741,7 @@ export default function App() {
                 </div>
               </div>
               <div className="glass rounded-2xl p-6 text-sm text-slate-300">
-                Make sure backend is running on <span className="text-slate-100">https://civiclink-9kis-2026.onrender.com</span> (or set <span className="text-slate-100">VITE_API_BASE_URL</span>).
+                Make sure backend is running on <span className="text-slate-100">{API_BASE_URL}</span> (or set <span className="text-slate-100">VITE_API_URL</span>).
               </div>
             </div>
 
