@@ -805,8 +805,61 @@ export default function App() {
                   ))}
                 </div>
               </div>
-              <div className="glass rounded-2xl p-6 text-sm text-slate-300">
-                Make sure backend is running on <span className="text-slate-100">{API_BASE_URL}</span> (or set <span className="text-slate-100">VITE_API_URL</span>).
+              
+              {/* About This Website */}
+              <div className="glass rounded-2xl p-6">
+                <div className="text-xl font-semibold mb-3">📋 About This Website</div>
+                <div className="text-sm text-slate-300 space-y-2">
+                  <p>
+                    CivicLink is a modern citizen grievance redressal platform that bridges the gap between citizens and government authorities. 
+                    Our mission is to make civic complaint filing transparent, efficient, and trackable.
+                  </p>
+                  <p>
+                    Whether it's a pothole, pollution issue, traffic problem, or any civic concern, CivicLink ensures your voice reaches the right department 
+                    and you can track the resolution progress in real-time.
+                  </p>
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <div className="text-xs text-slate-400">
+                      <strong className="text-slate-200">Key Features:</strong> AI-powered category routing • Real-time status tracking • 
+                      GPS location tagging • Photo evidence upload • Authority dashboard • Transparent progress monitoring
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* How It Works */}
+              <div className="glass rounded-2xl p-6">
+                <div className="text-xl font-semibold mb-3">⚙️ How It Works</div>
+                <div className="space-y-3 text-sm text-slate-300">
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-cyan-400/15 border border-cyan-300/30 grid place-items-center text-xs font-semibold text-cyan-100">1</div>
+                    <div>
+                      <div className="font-semibold text-slate-100">File Your Complaint</div>
+                      <div className="text-xs text-slate-400">Sign in as a citizen and submit your complaint with title, description, and optional photo evidence. GPS location is auto-detected.</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-cyan-400/15 border border-cyan-300/30 grid place-items-center text-xs font-semibold text-cyan-100">2</div>
+                    <div>
+                      <div className="font-semibold text-slate-100">AI Auto-Routing</div>
+                      <div className="text-xs text-slate-400">Our intelligent system analyzes your complaint description and automatically routes it to the correct authority category (Police, Municipality, Traffic, etc.).</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-orange-400/15 border border-orange-300/30 grid place-items-center text-xs font-semibold text-orange-100">3</div>
+                    <div>
+                      <div className="font-semibold text-slate-100">Authority Takes Action</div>
+                      <div className="text-xs text-slate-400">Government authorities access their dashboard, review complaints in their department, and update the status as they work on resolution.</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-emerald-400/15 border border-emerald-300/30 grid place-items-center text-xs font-semibold text-emerald-100">4</div>
+                    <div>
+                      <div className="font-semibold text-slate-100">Track Progress in Real-Time</div>
+                      <div className="text-xs text-slate-400">Monitor your complaint's journey through 4 stages: Pending → Under Review → In Progress → Resolved. Get transparency at every step.</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
