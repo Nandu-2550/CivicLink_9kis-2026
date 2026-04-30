@@ -22,12 +22,11 @@ export const api = {
   register: (payload) => apiFetch("/api/auth/register", { body: payload }),
   login: (payload) => apiFetch("/api/auth/login", { body: payload }),
   authorityLogin: (payload) => apiFetch("/api/authority/login", { body: payload }),
-  fileComplaint: ({ token, title, description, lat, lng, file }) => {
+  fileComplaint: ({ token, title, description, location, file }) => {
     const form = new FormData();
     form.append("title", title);
     form.append("description", description);
-    if (lat !== null && lat !== undefined) form.append("lat", String(lat));
-    if (lng !== null && lng !== undefined) form.append("lng", String(lng));
+    if (location) form.append("location", JSON.stringify(location));
     if (file) form.append("file", file);
     return apiFetch("/api/complaints", { token, method: "POST", body: form, isForm: true });
   },

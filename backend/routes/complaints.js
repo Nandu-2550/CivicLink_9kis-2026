@@ -9,54 +9,57 @@ const { createCloudinaryStorage } = require("../config/cloudinary");
 
 const router = express.Router();
 
-function uploadsDir() {
-  const base = process.env.UPLOAD_DIR || "uploads";
-  return path.join(process.cwd(), base);
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir()),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname || "");
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
-  }
-});
-
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
+const cloudinaryStorage = createCloudinaryStorage("civiclink/citizen-proofs");
+const upload = multer({ storage: cloudinaryStorage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.post("/", requireAuth, requireRole("citizen"), upload.single("file"), async (req, res) => {
   try {
-    const { title, description, lat, lng } = req.body || {};
+    const { title, description, lat, lng, location: rawLocation } = req.body || {};
     if (!title || !description) return res.status(400).json({ message: "Missing fields" });
 
-    const category = routeCategory(description);
-    const attachmentUrl = req.file ? `/uploads/${req.file.filename}` : "";
+    const category = await routeCategory(description);
+    const citizenImage = req.file ? (req.file.path || req.file.secure_url || req.file.url || "") : "";
+
+    const parsedLocation = { lat: null, lng: null, formattedAddress: "" };
+    if (rawLocation) {
+      try {
+        const parsed = JSON.parse(String(rawLocation));
+        if (typeof parsed === "object" && parsed !== null) {
+          parsedLocation.lat = parsed.lat !== undefined && parsed.lat !== null && parsed.lat !== "" ? Number(parsed.lat) : null;
+          parsedLocation.lng = parsed.lng !== undefined && parsed.lng !== null && parsed.lng !== "" ? Number(parsed.lng) : null;
+          parsedLocation.formattedAddress = String(parsed.formattedAddress || "").trim();
+        }
+      } catch {
+        // ignore invalid JSON and fall back to individual fields
+      }
+    }
+    if (lat !== undefined && lat !== null && lat !== "") parsedLocation.lat = Number(lat);
+    if (lng !== undefined && lng !== null && lng !== "") parsedLocation.lng = Number(lng);
 
     const complaint = await Complaint.create({
       citizen: req.user.userId,
       title: String(title).trim(),
       description: String(description).trim(),
       category,
-      location: {
-        lat: lat === undefined || lat === null || lat === "" ? null : Number(lat),
-        lng: lng === undefined || lng === null || lng === "" ? null : Number(lng)
-      },
-      attachmentUrl
+      location: parsedLocation,
+      citizenImage,
+      attachmentUrl: citizenImage
     });
 
     return res.status(201).json({ complaint });
-  } catch {
-    return res.status(500).json({ message: "Server error" });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error("Complaint creation error:", errorMessage, err);
+    return res.status(500).json({ message: "Server error", error: errorMessage });
   }
 });
 
 router.get("/mine", requireAuth, requireRole("citizen"), async (req, res) => {
   try {
     const complaints = await Complaint.find({ citizen: req.user.userId })
-      .select("title description category status statusHistory resolutionProof attachmentUrl location createdAt updatedAt")
+      .select("title description category status statusHistory authorityImage citizenImage location createdAt updatedAt")
       .sort({ createdAt: -1 });
     
-    // Explicitly map to ensure all fields including resolutionProof are always included
     const mappedComplaints = complaints.map(c => ({
       _id: c._id,
       title: c.title,
@@ -64,25 +67,43 @@ router.get("/mine", requireAuth, requireRole("citizen"), async (req, res) => {
       category: c.category,
       status: c.status,
       statusHistory: c.statusHistory,
-      resolutionProof: c.resolutionProof || "",
-      attachmentUrl: c.attachmentUrl,
-      location: c.location,
+      citizenImage: c.citizenImage || "",
+      authorityImage: c.authorityImage || "",
+      resolutionProof: c.authorityImage || c.resolutionProof || "",
+      location: c.location || { lat: null, lng: null, formattedAddress: "" },
       createdAt: c.createdAt,
-      updatedAt: c.updatedAt
+      updatedAt: c.updatedAt,
+      attachmentUrl: c.citizenImage || ""
     }));
     
     return res.json({ complaints: mappedComplaints });
-  } catch {
-    return res.status(500).json({ message: "Server error" });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error("Get complaints error:", errorMessage, err);
+    return res.status(500).json({ message: "Server error", error: errorMessage });
   }
 });
 
 // Cloudinary storage for resolution proof images
-const cloudinaryStorage = createCloudinaryStorage("civiclink/resolution-proofs");
-const cloudinaryUpload = multer({ storage: cloudinaryStorage, limits: { fileSize: 10 * 1024 * 1024 } });
+const resolutionCloudinaryStorage = createCloudinaryStorage("civiclink/resolution-proofs");
+const cloudinaryUpload = multer({ storage: resolutionCloudinaryStorage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 // PUT /api/complaints/:id/status - Authority updates complaint status
-router.put("/:id/status", requireAuth, requireRole("authority"), cloudinaryUpload.single("resolutionProof"), async (req, res) => {
+router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next) => {
+  cloudinaryUpload.single("resolutionProof")(req, res, async (err) => {
+    if (err instanceof multer.MulterError) {
+      // A Multer error occurred when uploading.
+      console.error("Multer error during resolutionProof upload:", err.message, err);
+      return res.status(400).json({ message: `File upload error: ${err.message}` });
+    } else if (err) {
+      // An unknown error occurred when uploading (e.g., from Cloudinary storage engine).
+      console.error("Unknown error during resolutionProof upload:", err.message, err);
+      return res.status(500).json({ message: "Server error during file upload", error: err.message });
+    }
+    // If no error from Multer, proceed to the route handler logic
+    next();
+  });
+}, async (req, res) => {
   try {
     const { status, note } = req.body;
     const validStatuses = ["Pending", "Under Review", "In Progress", "Resolved"];
@@ -99,12 +120,17 @@ router.put("/:id/status", requireAuth, requireRole("authority"), cloudinaryUploa
     // Update status
     complaint.status = status;
     
-    // Add to status history
+    // Ensure the history array exists before pushing
+    if (!Array.isArray(complaint.statusHistory)) {
+      complaint.statusHistory = [];
+    }
     complaint.statusHistory.push({ step: status, date: new Date() });
-    
-    // Handle resolution proof image (Cloudinary URL) - save whenever file is uploaded
-    if (req.file) {
-      complaint.resolutionProof = req.file.path; // Cloudinary returns the URL in req.file.path
+
+    // Handle authority resolution proof image (Cloudinary URL only)
+    const authorityImageUrl = req.file?.path || req.file?.secure_url || req.file?.url;
+    if (authorityImageUrl) {
+      complaint.authorityImage = authorityImageUrl;
+      complaint.resolutionProof = authorityImageUrl;
     }
 
     await complaint.save();
@@ -124,12 +150,14 @@ router.put("/:id/status", requireAuth, requireRole("authority"), cloudinaryUploa
         _id: complaint._id,
         status: complaint.status,
         statusHistory: complaint.statusHistory,
+        authorityImage: complaint.authorityImage,
         resolutionProof: complaint.resolutionProof
       }
     });
   } catch (err) {
-    console.error("Status update error:", err);
-    return res.status(500).json({ message: "Server error" });
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error("Status update error:", errorMessage, err); // Log the error message and full error object
+    return res.status(500).json({ message: "Server error", error: errorMessage });
   }
 });
 
@@ -153,8 +181,10 @@ router.get("/:id", requireAuth, async (req, res) => {
     }
 
     return res.json({ complaint });
-  } catch {
-    return res.status(500).json({ message: "Server error" });
+  } catch (err) { // Added 'err' parameter
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error("Get single complaint error:", errorMessage, err);
+    return res.status(500).json({ message: "Server error", error: errorMessage });
   }
 });
 

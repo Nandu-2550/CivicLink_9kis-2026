@@ -39,9 +39,11 @@ const complaintSchema = new mongoose.Schema(
     },
     location: {
       lat: { type: Number, default: null },
-      lng: { type: Number, default: null }
+      lng: { type: Number, default: null },
+      formattedAddress: { type: String, default: "" }
     },
-    attachmentUrl: { type: String, default: "" },
+    citizenImage: { type: String, default: "" },
+    authorityImage: { type: String, default: "" },
     currentStage: { type: String, required: true, default: "Submitted", index: true },
     timeline: { type: [timelineItemSchema], default: () => [{ stage: "Submitted", note: "Complaint filed" }] },
     status: {

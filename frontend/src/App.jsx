@@ -87,17 +87,21 @@ function StatusStepper({ currentStatus }) {
   );
 }
 
-// Resolution proof display component
-function ResolutionProof({ proofUrl }) {
-  if (!proofUrl) return null;
+// Generic image panel component
+function ImagePanel({ title, imageUrl, altText }) {
+  if (!imageUrl) return null;
+
+  const isAbsoluteUrl = imageUrl.startsWith('http://') || imageUrl.startsWith('https://');
+  const finalUrl = isAbsoluteUrl ? imageUrl : `${API_BASE_URL}${imageUrl}`;
   
   return (
-    <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-400/5 p-4">
-      <div className="text-sm font-semibold text-emerald-100 mb-2">Authority Resolution Proof</div>
+    <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4">
+      <div className="text-sm font-semibold text-slate-100 mb-2">{title}</div>
       <img 
-        src={proofUrl} 
-        alt="Resolution proof" 
-        className="max-h-48 rounded-lg border border-white/10"
+        src={finalUrl} 
+        alt={altText || title} 
+        className="w-full max-w-full h-auto rounded-xl border border-white/10 object-cover"
+        onError={(e) => { e.target.style.display = 'none'; }}
       />
     </div>
   );
@@ -386,6 +390,7 @@ function CitizenApp({ token, user }) {
   const gpsWatchIdRef = useRef(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState({});
+  const [authFile, setAuthFile] = useState({}); // mapped by complaint id
 
   const predicted = useMemo(() => {
     const d = (form.description || "").toLowerCase();
@@ -463,7 +468,8 @@ function CitizenApp({ token, user }) {
     setErr("");
     setMsg("");
     try {
-      await api.fileComplaint({ token, title: form.title, description: form.description, lat: gps.lat, lng: gps.lng, file });
+      const locationObj = { lat: gps.lat, lng: gps.lng, formattedAddress: gps.formattedAddress || "" };
+      await api.fileComplaint({ token, title: form.title, description: form.description, location: locationObj, file });
       setMsg("Complaint filed successfully.");
       setForm({ title: "", description: "" });
       setFile(null);
@@ -478,7 +484,8 @@ function CitizenApp({ token, user }) {
   async function handleStatusUpdate(complaintId, newStatus) {
     setStatusUpdating((prev) => ({ ...prev, [complaintId]: true }));
     try {
-      await api.updateStatus(token, complaintId, newStatus, "");
+      const fileToUpload = authFile[complaintId] || null;
+      await api.updateStatus(token, complaintId, newStatus, "", fileToUpload);
       // Update local state immediately for instant UI feedback
       setComplaints((prev) =>
         prev.map((c) =>
@@ -486,6 +493,7 @@ function CitizenApp({ token, user }) {
         )
       );
       setMsg(`Status updated to ${newStatus}`);
+      setAuthFile((prev) => ({ ...prev, [complaintId]: null }));
     } catch (ex) {
       setErr(ex.message);
     } finally {
@@ -621,28 +629,38 @@ function CitizenApp({ token, user }) {
                   <div className="text-xs rounded-full border border-white/10 bg-white/5 px-3 py-1">{c.category}</div>
                 </div>
                 <div className="mt-2 text-sm text-slate-300">{c.description}</div>
-                
-                {/* Display uploaded image if exists */}
-                {c.attachmentUrl && (
-                  <div className="mt-3">
-                    <div className="text-xs text-slate-400 mb-2">📎 Your Evidence Photo:</div>
-                    <img 
-                      src={`${API_BASE_URL}${c.attachmentUrl}`} 
-                      alt="Complaint evidence"
-                      className="w-full max-w-md h-auto rounded-xl border border-white/10 object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
+                {c.location?.formattedAddress || (c.location?.lat !== null && c.location?.lng !== null) ? (
+                  <div className="mt-2 text-xs text-slate-400">
+                    Location: {c.location?.formattedAddress || `${c.location.lat.toFixed(6)}, ${c.location.lng.toFixed(6)}`}
                   </div>
-                )}
-                
+                ) : null}
+
+                <ImagePanel
+                  title="📎 Citizen Evidence Photo"
+                  imageUrl={c.citizenImage || c.attachmentUrl}
+                  altText="Citizen evidence"
+                />
+                <ImagePanel
+                  title="✅ Authority Resolution Proof"
+                  imageUrl={c.authorityImage || c.resolutionProof}
+                  altText="Authority resolution proof"
+                />
+
                 <StatusStepper currentStatus={c.status} />
                 
                 {/* Authority-only Status Update Panel */}
                 {user?.role === 'authority' && (
                   <div className="mt-4 p-4 rounded-xl border border-cyan-500/30 bg-cyan-400/5">
                     <div className="text-sm font-semibold text-cyan-100 mb-3">Authority Status Controls</div>
+                    <div className="mb-3">
+                      <label className="text-xs text-slate-300 block mb-1">Resolution Proof (Optional)</label>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:bg-cyan-500/20 file:text-cyan-200 cursor-pointer"
+                        onChange={(e) => setAuthFile(prev => ({ ...prev, [c._id]: e.target.files?.[0] || null }))}
+                      />
+                    </div>
                     <div className="grid gap-2 sm:grid-cols-4">
                       <button
                         className="btn text-xs"
@@ -669,7 +687,7 @@ function CitizenApp({ token, user }) {
                   </div>
                 )}
                 
-                <ResolutionProof proofUrl={c.resolutionProof} />
+
               </div>
             ))
           )}
@@ -802,6 +820,7 @@ function AuthorityApp({ token, authority }) {
   const [noteDraft, setNoteDraft] = useState({});
   const [statusDraft, setStatusDraft] = useState({});
   const [proofFile, setProofFile] = useState({});
+  const [showResolutionProofUploadForId, setShowResolutionProofUploadForId] = useState(null); // New state to control visibility of proof upload section
   const [statusUpdating, setStatusUpdating] = useState({});
   const [proofUpdated, setProofUpdated] = useState({});
 
@@ -848,6 +867,7 @@ function AuthorityApp({ token, authority }) {
       );
       setProofFile((s) => ({ ...s, [id]: null }));
       // Show success message if proof was uploaded
+      setShowResolutionProofUploadForId(null); // Hide upload section after successful update
       if (file) {
         setProofUpdated((s) => ({ ...s, [id]: true }));
         setTimeout(() => setProofUpdated((s) => ({ ...s, [id]: false })), 3000);
@@ -912,78 +932,102 @@ function AuthorityApp({ token, authority }) {
                 <div className="text-slate-500">{c.citizen?.email || "no email"}</div>
               </div>
               <div className="mt-2 text-sm text-slate-300">{c.description}</div>
-              
-              {/* Display uploaded image if exists */}
-              {c.attachmentUrl && (
-                <div className="mt-3">
-                  <div className="text-xs text-slate-400 mb-2">📎 Evidence Photo:</div>
-                  <img 
-                    src={`${API_BASE_URL}${c.attachmentUrl}`} 
-                    alt="Complaint evidence"
-                    className="w-full max-w-md h-auto rounded-xl border border-white/10 object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
-                  />
+              {c.location?.formattedAddress || (c.location?.lat !== null && c.location?.lng !== null) ? (
+                <div className="mt-2 text-xs text-slate-400">
+                  Location: {c.location?.formattedAddress || `${c.location.lat.toFixed(6)}, ${c.location.lng.toFixed(6)}`}
                 </div>
-              )}
-              
+              ) : null}
+
+              <ImagePanel
+                title="📎 Citizen Evidence Photo"
+                imageUrl={c.citizenImage || c.attachmentUrl}
+                altText="Citizen evidence"
+              />
+              <ImagePanel
+                title="✅ Authority Resolution Proof"
+                imageUrl={c.authorityImage || c.resolutionProof}
+                altText="Authority resolution proof"
+              />
+
               <StatusStepper currentStatus={c.status} />
 
               {/* Authority Status Update Panel */}
-              <div className="mt-4 p-4 rounded-xl border border-cyan-500/30 bg-cyan-400/5">
-                <div className="text-sm font-semibold text-cyan-100 mb-3">Status Update</div>
-                
-                {/* Resolution proof upload - single section */}
-                <div className="mb-4 pb-4 border-b border-white/10">
-                  <div className="text-xs text-slate-400 mb-2">📸 Resolution Proof (optional)</div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <label className="btn cursor-pointer select-none text-sm">
-                      Choose Photo
-                      <input
-                        className="hidden"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setProofFile((s) => ({ ...s, [c._id]: e.target.files?.[0] || null }))}
-                      />
-                    </label>
-                    <span className="text-xs text-slate-400">
-                      {proofFile[c._id]?.name || "No file chosen"}
-                    </span>
-                    {proofFile[c._id] && (
-                      <button 
-                        className="btn text-xs" 
-                        onClick={() => setProofFile((s) => ({ ...s, [c._id]: null }))}
+              {c.status !== "Resolved" && ( // Only show controls if not already resolved
+                <div className="mt-4 p-4 rounded-xl border border-cyan-500/30 bg-cyan-400/5 animate-fade-in">
+                  <div className="text-sm font-semibold text-cyan-100 mb-3">Status Update</div>
+                  
+                  {/* Resolution proof upload - conditionally rendered */}
+                  {showResolutionProofUploadForId === c._id ? (
+                    <div className="mb-4 pb-4 border-b border-white/10 animate-fade-in">
+                      <div className="text-xs text-slate-400 mb-2">📸 Resolution Proof (optional)</div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <label className="btn cursor-pointer select-none text-sm">
+                          Choose Photo
+                          <input
+                            className="hidden"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setProofFile((s) => ({ ...s, [c._id]: e.target.files?.[0] || null }))}
+                          />
+                        </label>
+                        <span className="text-xs text-slate-400">
+                          {proofFile[c._id]?.name ? proofFile[c._id].name : "No file chosen"}
+                        </span>
+                        {proofFile[c._id] && (
+                          <button 
+                            className="btn text-xs" 
+                            onClick={() => setProofFile((s) => ({ ...s, [c._id]: null }))}
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          className="btn btn-primary text-xs flex-1"
+                          disabled={statusUpdating[c._id]}
+                          onClick={() => quickStatusUpdate(c._id, "Resolved")}
+                        >
+                          {statusUpdating[c._id] ? "Resolving..." : "Confirm Resolution"}
+                        </button>
+                        <button
+                          className="btn text-xs flex-1"
+                          onClick={() => {
+                            setShowResolutionProofUploadForId(null);
+                            setProofFile((s) => ({ ...s, [c._id]: null }));
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <button
+                        className="btn text-xs"
+                        disabled={c.status === "Under Review" || statusUpdating[c._id]}
+                        onClick={() => quickStatusUpdate(c._id, "Under Review")}
                       >
-                        Clear
+                        {statusUpdating[c._id] ? "Updating..." : "Mark as Under Review"}
                       </button>
-                    )}
-                  </div>
+                      <button
+                        className="btn text-xs"
+                        disabled={c.status === "In Progress" || statusUpdating[c._id]}
+                        onClick={() => quickStatusUpdate(c._id, "In Progress")}
+                      >
+                        {statusUpdating[c._id] ? "Updating..." : "Mark as In Progress"}
+                      </button>
+                      <button
+                        className="btn btn-primary text-xs"
+                        disabled={statusUpdating[c._id]}
+                        onClick={() => setShowResolutionProofUploadForId(c._id)} // First click to show upload
+                      >
+                        Mark as Resolved
+                      </button>
+                    </div>
+                  )}
                 </div>
-                
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <button
-                    className="btn text-xs"
-                    disabled={c.status === "Under Review" || statusUpdating[c._id]}
-                    onClick={() => quickStatusUpdate(c._id, "Under Review")}
-                  >
-                    {statusUpdating[c._id] ? "Updating..." : "Mark as Under Review"}
-                  </button>
-                  <button
-                    className="btn text-xs"
-                    disabled={c.status === "In Progress" || statusUpdating[c._id]}
-                    onClick={() => quickStatusUpdate(c._id, "In Progress")}
-                  >
-                    {statusUpdating[c._id] ? "Updating..." : "Mark as In Progress"}
-                  </button>
-                  <button
-                    className="btn btn-primary text-xs"
-                    disabled={c.status === "Resolved" || statusUpdating[c._id]}
-                    onClick={() => quickStatusUpdate(c._id, "Resolved")}
-                  >
-                    {statusUpdating[c._id] ? "Updating..." : "Mark as Resolved"}
-                  </button>
-                </div>
+              )}
                 
                 {/* Success message when proof is updated */}
                 {proofUpdated[c._id] && (
@@ -991,12 +1035,12 @@ function AuthorityApp({ token, authority }) {
                     ✓ Proof updated successfully!
                   </div>
                 )}
-              </div>
 
-              {/* Show existing resolution proof */}
-              {c.resolutionProof && (
-                <ResolutionProof proofUrl={c.resolutionProof} />
-              )}
+                <ImagePanel
+                  title="✅ Authority Resolution Proof"
+                  imageUrl={c.authorityImage || c.resolutionProof}
+                  altText="Authority resolution proof"
+                />
             </div>
           ))}
         </div>
@@ -1331,4 +1375,3 @@ export default function App() {
     </div>
   );
 }
-

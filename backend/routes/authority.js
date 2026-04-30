@@ -33,7 +33,26 @@ router.get("/complaints", requireAuth, requireRole("authority"), async (req, res
     const complaints = await Complaint.find({ category: req.user.category })
       .populate("citizen", "name email")
       .sort({ createdAt: -1 });
-    return res.json({ complaints });
+    
+    const mappedComplaints = complaints.map(c => ({
+      _id: c._id,
+      title: c.title,
+      description: c.description,
+      category: c.category,
+      status: c.status,
+      statusHistory: c.statusHistory,
+      citizenImage: c.citizenImage || "",
+      authorityImage: c.authorityImage || "",
+      resolutionProof: c.authorityImage || c.resolutionProof || "",
+      location: c.location || { lat: null, lng: null, formattedAddress: "" },
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      citizen: c.citizen,
+      currentStage: c.currentStage,
+      attachmentUrl: c.citizenImage || ""
+    }));
+    
+    return res.json({ complaints: mappedComplaints });
   } catch {
     return res.status(500).json({ message: "Server error" });
   }
