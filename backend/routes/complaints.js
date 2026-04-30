@@ -52,8 +52,26 @@ router.post("/", requireAuth, requireRole("citizen"), upload.single("file"), asy
 
 router.get("/mine", requireAuth, requireRole("citizen"), async (req, res) => {
   try {
-    const complaints = await Complaint.find({ citizen: req.user.userId }).sort({ createdAt: -1 });
-    return res.json({ complaints });
+    const complaints = await Complaint.find({ citizen: req.user.userId })
+      .select("title description category status statusHistory resolutionProof attachmentUrl location createdAt updatedAt")
+      .sort({ createdAt: -1 });
+    
+    // Explicitly map to ensure all fields including resolutionProof are always included
+    const mappedComplaints = complaints.map(c => ({
+      _id: c._id,
+      title: c.title,
+      description: c.description,
+      category: c.category,
+      status: c.status,
+      statusHistory: c.statusHistory,
+      resolutionProof: c.resolutionProof || "",
+      attachmentUrl: c.attachmentUrl,
+      location: c.location,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt
+    }));
+    
+    return res.json({ complaints: mappedComplaints });
   } catch {
     return res.status(500).json({ message: "Server error" });
   }
@@ -84,8 +102,8 @@ router.put("/:id/status", requireAuth, requireRole("authority"), cloudinaryUploa
     // Add to status history
     complaint.statusHistory.push({ step: status, date: new Date() });
     
-    // Handle resolution proof image if status is Resolved (Cloudinary URL)
-    if (status === "Resolved" && req.file) {
+    // Handle resolution proof image (Cloudinary URL) - save whenever file is uploaded
+    if (req.file) {
       complaint.resolutionProof = req.file.path; // Cloudinary returns the URL in req.file.path
     }
 

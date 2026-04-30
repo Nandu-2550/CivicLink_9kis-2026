@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { API_BASE_URL } from './api/config';
+import { 
+  Zap, 
+  Eye, 
+  Shield, 
+  TrendingUp, 
+  Mail,
+  Phone,
+  MapPin
+} from 'lucide-react';
 
 const CATEGORIES = [
   "Police",
@@ -612,6 +621,22 @@ function CitizenApp({ token, user }) {
                   <div className="text-xs rounded-full border border-white/10 bg-white/5 px-3 py-1">{c.category}</div>
                 </div>
                 <div className="mt-2 text-sm text-slate-300">{c.description}</div>
+                
+                {/* Display uploaded image if exists */}
+                {c.attachmentUrl && (
+                  <div className="mt-3">
+                    <div className="text-xs text-slate-400 mb-2">📎 Your Evidence Photo:</div>
+                    <img 
+                      src={`${API_BASE_URL}${c.attachmentUrl}`} 
+                      alt="Complaint evidence"
+                      className="w-full max-w-md h-auto rounded-xl border border-white/10 object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+                
                 <StatusStepper currentStatus={c.status} />
                 
                 {/* Authority-only Status Update Panel */}
@@ -778,6 +803,7 @@ function AuthorityApp({ token, authority }) {
   const [statusDraft, setStatusDraft] = useState({});
   const [proofFile, setProofFile] = useState({});
   const [statusUpdating, setStatusUpdating] = useState({});
+  const [proofUpdated, setProofUpdated] = useState({});
 
   async function load() {
     setErr("");
@@ -812,13 +838,20 @@ function AuthorityApp({ token, authority }) {
   async function quickStatusUpdate(id, newStatus) {
     setStatusUpdating((prev) => ({ ...prev, [id]: true }));
     try {
-      await api.updateStatus(token, id, newStatus, "");
+      const file = proofFile[id] || null;
+      await api.updateStatus(token, id, newStatus, "", file);
       // Update local state immediately for instant UI feedback
       setComplaints((prev) =>
         prev.map((c) =>
           c._id === id ? { ...c, status: newStatus } : c
         )
       );
+      setProofFile((s) => ({ ...s, [id]: null }));
+      // Show success message if proof was uploaded
+      if (file) {
+        setProofUpdated((s) => ({ ...s, [id]: true }));
+        setTimeout(() => setProofUpdated((s) => ({ ...s, [id]: false })), 3000);
+      }
     } catch (ex) {
       setErr(ex.message);
     } finally {
@@ -879,12 +912,56 @@ function AuthorityApp({ token, authority }) {
                 <div className="text-slate-500">{c.citizen?.email || "no email"}</div>
               </div>
               <div className="mt-2 text-sm text-slate-300">{c.description}</div>
+              
+              {/* Display uploaded image if exists */}
+              {c.attachmentUrl && (
+                <div className="mt-3">
+                  <div className="text-xs text-slate-400 mb-2">📎 Evidence Photo:</div>
+                  <img 
+                    src={`${API_BASE_URL}${c.attachmentUrl}`} 
+                    alt="Complaint evidence"
+                    className="w-full max-w-md h-auto rounded-xl border border-white/10 object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+              
               <StatusStepper currentStatus={c.status} />
 
               {/* Authority Status Update Panel */}
               <div className="mt-4 p-4 rounded-xl border border-cyan-500/30 bg-cyan-400/5">
                 <div className="text-sm font-semibold text-cyan-100 mb-3">Status Update</div>
-                <div className="grid gap-2 sm:grid-cols-4">
+                
+                {/* Resolution proof upload - single section */}
+                <div className="mb-4 pb-4 border-b border-white/10">
+                  <div className="text-xs text-slate-400 mb-2">📸 Resolution Proof (optional)</div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <label className="btn cursor-pointer select-none text-sm">
+                      Choose Photo
+                      <input
+                        className="hidden"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setProofFile((s) => ({ ...s, [c._id]: e.target.files?.[0] || null }))}
+                      />
+                    </label>
+                    <span className="text-xs text-slate-400">
+                      {proofFile[c._id]?.name || "No file chosen"}
+                    </span>
+                    {proofFile[c._id] && (
+                      <button 
+                        className="btn text-xs" 
+                        onClick={() => setProofFile((s) => ({ ...s, [c._id]: null }))}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="grid gap-2 sm:grid-cols-3">
                   <button
                     className="btn text-xs"
                     disabled={c.status === "Under Review" || statusUpdating[c._id]}
@@ -908,31 +985,10 @@ function AuthorityApp({ token, authority }) {
                   </button>
                 </div>
                 
-                {/* Resolution proof upload - show when marking as Resolved */}
-                {c.status === "In Progress" && (
-                  <div className="mt-3 pt-3 border-t border-white/10">
-                    <div className="text-xs text-slate-400 mb-2">Upload Resolution Proof (optional)</div>
-                    <div className="flex items-center gap-3">
-                      <label className="btn cursor-pointer select-none text-sm">
-                        Choose Photo
-                        <input
-                          className="hidden"
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => setProofFile((s) => ({ ...s, [c._id]: e.target.files?.[0] || null }))}
-                        />
-                      </label>
-                      <span className="text-xs text-slate-400">
-                        {proofFile[c._id]?.name || "No file chosen"}
-                      </span>
-                      <button 
-                        className="btn btn-primary text-xs" 
-                        onClick={() => updateStatus(c._id).catch(() => {})}
-                        disabled={!proofFile[c._id]}
-                      >
-                        Upload & Update
-                      </button>
-                    </div>
+                {/* Success message when proof is updated */}
+                {proofUpdated[c._id] && (
+                  <div className="mt-3 text-xs text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 rounded-lg p-2 text-center animate-pulse">
+                    ✓ Proof updated successfully!
                   </div>
                 )}
               </div>
@@ -1075,24 +1131,138 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Features Grid */}
-                <div className="mt-16 grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-                  <div className="glass-card rounded-xl p-6 text-center hover:scale-105 transition-all duration-300">
-                    <div className="text-5xl mb-4">📍</div>
-                    <h4 className="text-lg font-semibold text-white mb-2">GPS Location Tagging</h4>
-                    <p className="text-sm text-white/50">Automatically detect and tag complaint locations</p>
+                {/* Features Grid - Modern Design */}
+                <div className="mt-24 max-w-7xl mx-auto">
+                  <div className="text-center mb-12">
+                    <h2 className="text-4xl font-bold text-white mb-4">Why Choose CivicLink?</h2>
+                    <p className="text-lg text-white/60 max-w-2xl mx-auto">
+                      Powerful features designed to make civic engagement seamless and effective
+                    </p>
                   </div>
-                  <div className="glass-card rounded-xl p-6 text-center hover:scale-105 transition-all duration-300">
-                    <div className="text-5xl mb-4">📸</div>
-                    <h4 className="text-lg font-semibold text-white mb-2">Photo Evidence</h4>
-                    <p className="text-sm text-white/50">Upload photos from camera or gallery</p>
-                  </div>
-                  <div className="glass-card rounded-xl p-6 text-center hover:scale-105 transition-all duration-300">
-                    <div className="text-5xl mb-4">📊</div>
-                    <h4 className="text-lg font-semibold text-white mb-2">Real-time Tracking</h4>
-                    <p className="text-sm text-white/50">Monitor progress from submission to resolution</p>
+                  
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* Instant Reporting */}
+                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+                      <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center mb-6">
+                        <Zap className="w-7 h-7 text-white" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-3">Instant Reporting</h3>
+                      <p className="text-slate-600 leading-relaxed">
+                        File grievances in seconds with our optimized mobile-first complaint system.
+                      </p>
+                    </div>
+
+                    {/* Live Tracking */}
+                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+                      <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center mb-6">
+                        <Eye className="w-7 h-7 text-white" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-3">Live Tracking</h3>
+                      <p className="text-slate-600 leading-relaxed">
+                        Follow the journey of your complaint from submission to final resolution with real-time logs.
+                      </p>
+                    </div>
+
+                    {/* Secure & Private */}
+                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+                      <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center mb-6">
+                        <Shield className="w-7 h-7 text-white" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-3">Secure & Private</h3>
+                      <p className="text-slate-600 leading-relaxed">
+                        Your data is protected by institutional-grade encryption and strict privacy protocols.
+                      </p>
+                    </div>
+
+                    {/* Data Insights */}
+                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+                      <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center mb-6">
+                        <TrendingUp className="w-7 h-7 text-white" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-3">Data Insights</h3>
+                      <p className="text-slate-600 leading-relaxed">
+                        Powerful analytics help authorities identify and solve recurring civic issues faster.
+                      </p>
+                    </div>
                   </div>
                 </div>
+
+                {/* Footer - Professional Design */}
+                <footer className="mt-24" style={{ background: '#050a18' }}>
+                  <div className="max-w-7xl mx-auto px-4 py-16">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+                      {/* Brand Column */}
+                      <div className="lg:col-span-1">
+                        <h3 className="text-2xl font-bold text-white mb-4 tracking-wider">CIVICLINK</h3>
+                        <p className="text-slate-400 leading-relaxed mb-6">
+                          Redefining the relationship between citizens and government through innovation and transparency.
+                        </p>
+                        <div className="flex gap-4">
+                          <a href="#" className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-all duration-300 text-white font-bold text-sm">
+                            𝕏
+                          </a>
+                          <a href="#" className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-all duration-300 text-white font-bold text-sm">
+                            in
+                          </a>
+                          <a href="#" className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-all duration-300 text-white font-bold text-sm">
+                            f
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Quick Links */}
+                      <div>
+                        <h4 className="text-lg font-bold text-white mb-6">Quick Links</h4>
+                        <ul className="space-y-3">
+                          <li><a href="#" className="text-slate-400 hover:text-white transition-colors duration-200">About Us</a></li>
+                          <li><a href="#" className="text-slate-400 hover:text-white transition-colors duration-200">Portals</a></li>
+                          <li><a href="#" className="text-slate-400 hover:text-white transition-colors duration-200">Features</a></li>
+                          <li><a href="#" className="text-slate-400 hover:text-white transition-colors duration-200">Privacy Policy</a></li>
+                        </ul>
+                      </div>
+
+                      {/* Contact */}
+                      <div>
+                        <h4 className="text-lg font-bold text-white mb-6">Contact</h4>
+                        <ul className="space-y-3">
+                          <li><a href="#" className="text-slate-400 hover:text-white transition-colors duration-200">Support Center</a></li>
+                          <li><a href="#" className="text-slate-400 hover:text-white transition-colors duration-200">Press Kit</a></li>
+                          <li><a href="#" className="text-slate-400 hover:text-white transition-colors duration-200">Partnerships</a></li>
+                          <li><a href="#" className="text-slate-400 hover:text-white transition-colors duration-200">Contact Support</a></li>
+                        </ul>
+                      </div>
+
+                      {/* Get in Touch */}
+                      <div>
+                        <h4 className="text-lg font-bold text-white mb-6">Get in Touch</h4>
+                        <ul className="space-y-4">
+                          <li className="flex items-start gap-3">
+                            <Mail className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                            <span className="text-slate-400">support@civiclink.com</span>
+                          </li>
+                          <li className="flex items-start gap-3">
+                            <Phone className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                            <span className="text-slate-400">1-800-CIVIC-LINK</span>
+                          </li>
+                          <li className="flex items-start gap-3">
+                            <MapPin className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                            <span className="text-slate-400">Government Plaza, City Center</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Bottom Bar */}
+                    <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
+                      <p className="text-slate-500 text-sm">
+                        © 2026 CivicLink. All rights reserved.
+                      </p>
+                      <p className="text-slate-500 text-sm">
+                        Built for transparency and citizen empowerment.
+                      </p>
+                    </div>
+                  </div>
+                </footer>
               </div>
             )}
 
