@@ -6,6 +6,8 @@ const Notification = require("../models/Notification");
 const { routeCategory } = require("../utils/aiRouter");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { createCloudinaryStorage } = require("../config/cloudinary");
+const { sendStatusUpdateEmail } = require("../utils/email");
+const User = require("../models/User");
 
 const router = express.Router();
 
@@ -143,6 +145,19 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
       complaintId: complaint._id,
       isRead: false
     });
+
+    // Send email notification for important status updates
+    if (status === "In Progress" || status === "Resolved") {
+      try {
+        const citizenUser = await User.findById(complaint.citizen);
+        if (citizenUser && citizenUser.email) {
+          // Fire and forget (it handles its own errors so it doesn't block response)
+          sendStatusUpdateEmail(citizenUser.email, complaint, status);
+        }
+      } catch (err) {
+        console.error("Error fetching citizen for email:", err.message);
+      }
+    }
 
     return res.json({ 
       message: "Status updated successfully",

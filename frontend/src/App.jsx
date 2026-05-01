@@ -634,18 +634,29 @@ function CitizenApp({ token, user }) {
 
         <div className="grid gap-4">
           {complaints.length === 0 ? (
-            <div className="text-sm text-slate-400">No complaints yet.</div>
+            <div className="text-sm text-slate-400">No pending issues</div>
           ) : (
             complaints.map((c) => (
               <div key={c._id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="font-semibold">{c.title}</div>
-                  <div className="text-xs rounded-full border border-white/10 bg-white/5 px-3 py-1">{c.category}</div>
+                  <div className="text-xs rounded-full border border-white/10 bg-white/5 px-3 py-1">{c.category || "General/Uncategorized"}</div>
                 </div>
                 <div className="mt-2 text-sm text-slate-300">{c.description}</div>
                 {c.location?.formattedAddress || (c.location?.lat != null && c.location?.lng != null) ? (
                   <div className="mt-2 text-xs text-slate-400">
-                    Location: {c.location?.formattedAddress || `${Number(c.location.lat).toFixed(6)}, ${Number(c.location.lng).toFixed(6)}`}
+                    Location: {c.location?.formattedAddress ? (
+                      c.location.formattedAddress
+                    ) : (
+                      <a 
+                        href={`https://www.google.com/maps/search/?api=1&query=${c.location.lat},${c.location.lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cyan-400 hover:underline"
+                      >
+                        {Number(c.location.lat).toFixed(6)}, {Number(c.location.lng).toFixed(6)}
+                      </a>
+                    )}
                   </div>
                 ) : null}
 
@@ -911,7 +922,7 @@ function AuthorityApp({ token, authority }) {
       {loading ? (
         <div className="mt-6 text-sm text-slate-400">Loading...</div>
       ) : complaints.length === 0 ? (
-        <div className="mt-6 text-sm text-slate-400">No complaints for this category.</div>
+        <div className="mt-6 text-sm text-slate-400">No pending issues</div>
       ) : (
         <>
           {/* Statistics Cards */}
@@ -939,7 +950,7 @@ function AuthorityApp({ token, authority }) {
             <div key={c._id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="font-semibold">{c.title}</div>
-                <div className="text-xs rounded-full border border-white/10 bg-white/5 px-3 py-1">{c.currentStage}</div>
+                <div className="text-xs rounded-full border border-white/10 bg-white/5 px-3 py-1">{c.category || "General/Uncategorized"}</div>
               </div>
               <div className="mt-2 text-xs text-slate-400">
                 Citizen: <span className="text-slate-100">{c.citizen?.name || "Unknown"}</span>
@@ -948,7 +959,18 @@ function AuthorityApp({ token, authority }) {
               <div className="mt-2 text-sm text-slate-300">{c.description}</div>
               {c.location?.formattedAddress || (c.location?.lat != null && c.location?.lng != null) ? (
                 <div className="mt-2 text-xs text-slate-400">
-                  Location: {c.location?.formattedAddress || `${Number(c.location.lat).toFixed(6)}, ${Number(c.location.lng).toFixed(6)}`}
+                  Location: {c.location?.formattedAddress ? (
+                    c.location.formattedAddress
+                  ) : (
+                    <a 
+                      href={`https://www.google.com/maps/search/?api=1&query=${c.location.lat},${c.location.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-cyan-400 hover:underline"
+                    >
+                      {Number(c.location.lat).toFixed(6)}, {Number(c.location.lng).toFixed(6)}
+                    </a>
+                  )}
                 </div>
               ) : null}
 
@@ -1074,11 +1096,20 @@ export default function App() {
   const who = citizen ? `Citizen: ${citizen.user?.name || "Citizen"}` : authority ? `Authority: ${authority.authority?.category}` : null;
 
   function logout() {
-    localStorage.removeItem("civiclink_citizen");
-    localStorage.removeItem("civiclink_authority");
-    setCitizen(null);
-    setAuthority(null);
-    setActiveView("landing");
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+    
+    setTimeout(() => {
+      localStorage.removeItem("civiclink_citizen");
+      localStorage.removeItem("civiclink_authority");
+      setCitizen(null);
+      setAuthority(null);
+      setActiveView("landing");
+      
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 500);
+    }, 300);
   }
 
   function handleModeSelect(selectedMode) {
