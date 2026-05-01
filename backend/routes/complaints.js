@@ -146,17 +146,15 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
       isRead: false
     });
 
-    // Send email notification for important status updates
-    if (status === "In Progress" || status === "Resolved") {
-      try {
-        const citizenUser = await User.findById(complaint.citizen);
-        if (citizenUser && citizenUser.email) {
-          // Fire and forget (it handles its own errors so it doesn't block response)
-          sendStatusUpdateEmail(citizenUser.email, complaint, status);
-        }
-      } catch (err) {
-        console.error("Error fetching citizen for email:", err.message);
+    // Send email notification for status updates
+    try {
+      const citizenUser = await User.findById(complaint.citizen);
+      if (citizenUser && citizenUser.email) {
+        // Fire and forget (it handles its own errors so it doesn't block response)
+        sendStatusUpdateEmail(citizenUser.email, complaint, status);
       }
+    } catch (err) {
+      console.error("Error fetching citizen for email:", err.message);
     }
 
     return res.json({ 
