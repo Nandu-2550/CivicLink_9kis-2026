@@ -41,7 +41,7 @@ router.get("/complaints", requireAuth, requireRole("authority"), async (req, res
       category: c.category,
       status: c.status,
       statusHistory: c.statusHistory,
-      citizenImage: c.citizenImage || "",
+      citizenImage: c.citizenImage || c.attachmentUrl || "",
       authorityImage: c.authorityImage || "",
       resolutionProof: c.authorityImage || c.resolutionProof || "",
       location: c.location || { lat: null, lng: null, formattedAddress: "" },
@@ -49,7 +49,7 @@ router.get("/complaints", requireAuth, requireRole("authority"), async (req, res
       updatedAt: c.updatedAt,
       citizen: c.citizen,
       currentStage: c.currentStage,
-      attachmentUrl: c.citizenImage || ""
+      attachmentUrl: c.attachmentUrl || c.citizenImage || ""
     }));
     
     return res.json({ complaints: mappedComplaints });

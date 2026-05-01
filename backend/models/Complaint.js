@@ -43,6 +43,7 @@ const complaintSchema = new mongoose.Schema(
       formattedAddress: { type: String, default: "" }
     },
     citizenImage: { type: String, default: "" },
+    attachmentUrl: { type: String, default: "" },
     authorityImage: { type: String, default: "" },
     currentStage: { type: String, required: true, default: "Submitted", index: true },
     timeline: { type: [timelineItemSchema], default: () => [{ stage: "Submitted", note: "Complaint filed" }] },

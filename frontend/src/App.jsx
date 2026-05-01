@@ -629,9 +629,9 @@ function CitizenApp({ token, user }) {
                   <div className="text-xs rounded-full border border-white/10 bg-white/5 px-3 py-1">{c.category}</div>
                 </div>
                 <div className="mt-2 text-sm text-slate-300">{c.description}</div>
-                {c.location?.formattedAddress || (c.location?.lat !== null && c.location?.lng !== null) ? (
+                {c.location?.formattedAddress || (c.location?.lat != null && c.location?.lng != null) ? (
                   <div className="mt-2 text-xs text-slate-400">
-                    Location: {c.location?.formattedAddress || `${c.location.lat.toFixed(6)}, ${c.location.lng.toFixed(6)}`}
+                    Location: {c.location?.formattedAddress || `${Number(c.location.lat).toFixed(6)}, ${Number(c.location.lng).toFixed(6)}`}
                   </div>
                 ) : null}
 
@@ -932,9 +932,9 @@ function AuthorityApp({ token, authority }) {
                 <div className="text-slate-500">{c.citizen?.email || "no email"}</div>
               </div>
               <div className="mt-2 text-sm text-slate-300">{c.description}</div>
-              {c.location?.formattedAddress || (c.location?.lat !== null && c.location?.lng !== null) ? (
+              {c.location?.formattedAddress || (c.location?.lat != null && c.location?.lng != null) ? (
                 <div className="mt-2 text-xs text-slate-400">
-                  Location: {c.location?.formattedAddress || `${c.location.lat.toFixed(6)}, ${c.location.lng.toFixed(6)}`}
+                  Location: {c.location?.formattedAddress || `${Number(c.location.lat).toFixed(6)}, ${Number(c.location.lng).toFixed(6)}`}
                 </div>
               ) : null}
 
@@ -1035,12 +1035,6 @@ function AuthorityApp({ token, authority }) {
                     ✓ Proof updated successfully!
                   </div>
                 )}
-
-                <ImagePanel
-                  title="✅ Authority Resolution Proof"
-                  imageUrl={c.authorityImage || c.resolutionProof}
-                  altText="Authority resolution proof"
-                />
             </div>
           ))}
         </div>

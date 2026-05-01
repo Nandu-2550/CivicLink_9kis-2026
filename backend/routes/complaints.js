@@ -67,13 +67,13 @@ router.get("/mine", requireAuth, requireRole("citizen"), async (req, res) => {
       category: c.category,
       status: c.status,
       statusHistory: c.statusHistory,
-      citizenImage: c.citizenImage || "",
+      citizenImage: c.citizenImage || c.attachmentUrl || "",
       authorityImage: c.authorityImage || "",
       resolutionProof: c.authorityImage || c.resolutionProof || "",
       location: c.location || { lat: null, lng: null, formattedAddress: "" },
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
-      attachmentUrl: c.citizenImage || ""
+      attachmentUrl: c.attachmentUrl || c.citizenImage || ""
     }));
     
     return res.json({ complaints: mappedComplaints });
