@@ -4,8 +4,8 @@ const nodemailer = require("nodemailer");
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "nandeeshak777@gmail.com",
-    pass: "AmNandu8123",
+    user: "nandunusgavai@gmail.com",
+    pass: "ljuu gnae dkis csth",
   },
 });
 
@@ -17,10 +17,10 @@ const transporter = nodemailer.createTransport({
  */
 async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
   try {
-    const loginLink = "http://localhost:5173"; // Or process.env.FRONTEND_URL
-    
+    const loginLink = process.env.FRONTEND_URL || "http://localhost:5173";
+
     const mailOptions = {
-      from: '"CivicLink Support" <nandeeshak777@gmail.com>',
+      from: '"CivicLink Support" <nandunusgavai@gmail.com>',
       to: toEmail,
       subject: `CivicLink: Update on your complaint - ${complaint.title}`,
       html: `
