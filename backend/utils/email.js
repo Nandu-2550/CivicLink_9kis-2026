@@ -1,13 +1,6 @@
 const nodemailer = require("nodemailer");
 
-// Configure the transporter with the provided credentials
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: "nandunusgavai@gmail.com",
-    pass: "ljuu gnae dkis csth",
-  },
-});
+
 
 /**
  * Sends a status update email to the citizen.
@@ -17,7 +10,16 @@ const transporter = nodemailer.createTransport({
  */
 async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
   try {
-    const loginLink = process.env.FRONTEND_URL || "http://localhost:5173";
+    const loginLink = process.env.FRONTEND_URL || "https://civic-link-9kis-2026.vercel.app/";
+
+    // Configure the transporter fresh on every request (crucial for Vercel serverless)
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "nandunusgavai@gmail.com",
+        pass: "ljuu gnae dkis csth",
+      },
+    });
 
     const mailOptions = {
       from: '"CivicLink Support" <nandunusgavai@gmail.com>',
