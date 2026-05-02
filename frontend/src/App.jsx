@@ -497,15 +497,15 @@ function CitizenApp({ token, user }) {
 
   async function handleStatusUpdate(complaintId, newStatus) {
     setStatusUpdating((prev) => ({ ...prev, [complaintId]: true }));
+    // Optimistic UI update for instant feedback before email dispatch
+    setComplaints((prev) =>
+      prev.map((c) =>
+        c._id === complaintId ? { ...c, status: newStatus } : c
+      )
+    );
     try {
       const fileToUpload = authFile[complaintId] || null;
       await api.updateStatus(token, complaintId, newStatus, "", fileToUpload);
-      // Update local state immediately for instant UI feedback
-      setComplaints((prev) =>
-        prev.map((c) =>
-          c._id === complaintId ? { ...c, status: newStatus } : c
-        )
-      );
       setMsg(`Status updated to ${newStatus}`);
       setAuthFile((prev) => ({ ...prev, [complaintId]: null }));
     } catch (ex) {
@@ -881,15 +881,15 @@ function AuthorityApp({ token, authority }) {
 
   async function quickStatusUpdate(id, newStatus) {
     setStatusUpdating((prev) => ({ ...prev, [id]: true }));
+    // Optimistic UI update for instant feedback before email dispatch
+    setComplaints((prev) =>
+      prev.map((c) =>
+        c._id === id ? { ...c, status: newStatus } : c
+      )
+    );
     try {
       const file = proofFile[id] || null;
       await api.updateStatus(token, id, newStatus, "", file);
-      // Update local state immediately for instant UI feedback
-      setComplaints((prev) =>
-        prev.map((c) =>
-          c._id === id ? { ...c, status: newStatus } : c
-        )
-      );
       setProofFile((s) => ({ ...s, [id]: null }));
       // Show success message if proof was uploaded
       setShowResolutionProofUploadForId(null); // Hide upload section after successful update
