@@ -150,8 +150,11 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
     try {
       const citizenUser = await User.findById(complaint.citizen);
       if (citizenUser && citizenUser.email) {
-        // Await the email so Vercel serverless functions don't kill the process before it sends
-        await sendStatusUpdateEmail(citizenUser.email, complaint, status);
+        // Await the email with a 4-second timeout to prevent Vercel function freeze/504 errors
+        await Promise.race([
+          sendStatusUpdateEmail(citizenUser.email, complaint, status),
+          new Promise((resolve) => setTimeout(resolve, 4000))
+        ]);
       }
     } catch (err) {
       console.error("Error fetching citizen for email:", err.message);
