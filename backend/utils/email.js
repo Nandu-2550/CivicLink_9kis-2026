@@ -14,21 +14,25 @@ async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
 
     // Configure the transporter fresh on every request (crucial for Vercel serverless)
     const transporter = nodemailer.createTransport({
+      service: "gmail",
       host: "smtp.gmail.com",
       port: 465,
       secure: true, // Use implicit TLS
       auth: {
-        user: "nandunusgavai@gmail.com",
-        pass: "ljuu gnae dkis csth",
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       }
     });
 
     const mailOptions = {
-      from: '"CivicLink Support" <nandunusgavai@gmail.com>',
+      from: `"CivicLink Support" <${process.env.EMAIL_USER}>`,
       to: toEmail,
       subject: `CivicLink: Update on your complaint - ${complaint.title}`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; border: 1px solid #eaeaea; border-radius: 10px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <img src="${loginLink}image_4c8d95.png" alt="CivicLink Logo" style="max-width: 150px; height: auto;" />
+          </div>
           <h2 style="color: #0ea5e9;">CivicLink Complaint Update</h2>
           <p>Hello,</p>
           <p>There has been progress on your complaint: <strong>${complaint.title}</strong>.</p>
@@ -44,9 +48,9 @@ async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("Status update email sent successfully:", info.messageId);
+    console.log("Status update email sent successfully. Message ID:", info.messageId, "Status:", info.response);
   } catch (error) {
-    console.error("Failed to send status update email:", error.message);
+    console.error("Failed to send status update email. Error details:", error);
     // We intentionally don't throw the error so it doesn't crash the main status update flow.
   }
 }

@@ -171,10 +171,12 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
 
     // Send email notification for status updates
     try {
-      const citizenUser = await User.findById(complaint.citizen);
-      if (citizenUser && citizenUser.email) {
+      await complaint.populate('citizen');
+      if (complaint.citizen && complaint.citizen.email) {
         // Await directly to ensure the email completely leaves the server before Vercel freezes the function!
-        await sendStatusUpdateEmail(citizenUser.email, complaint, status);
+        await sendStatusUpdateEmail(complaint.citizen.email, complaint, status);
+      } else {
+        console.error("Citizen email is missing, cannot send status update email.");
       }
     } catch (err) {
       console.error("Error fetching citizen for email:", err.message);
