@@ -3,6 +3,9 @@ const jwt = require("jsonwebtoken");
 const Complaint = require("../models/Complaint");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { CATEGORIES } = require("../utils/aiRouter");
+const User = require("../models/User");
+const { sendStatusUpdateEmail } = require("../utils/email");
+const Notification = require("../models/Notification");
 
 const router = express.Router();
 
@@ -33,7 +36,7 @@ router.get("/complaints", requireAuth, requireRole("authority"), async (req, res
     const complaints = await Complaint.find({ category: req.user.category })
       .populate("citizen", "name email")
       .sort({ createdAt: -1 });
-    
+
     const mappedComplaints = complaints.map(c => ({
       _id: c._id,
       title: c.title,
@@ -51,7 +54,7 @@ router.get("/complaints", requireAuth, requireRole("authority"), async (req, res
       currentStage: c.currentStage,
       attachmentUrl: c.attachmentUrl || c.citizenImage || ""
     }));
-    
+
     return res.json({ complaints: mappedComplaints });
   } catch {
     return res.status(500).json({ message: "Server error" });
@@ -70,9 +73,34 @@ router.patch("/complaints/:id/stage", requireAuth, requireRole("authority"), asy
     complaint.currentStage = String(stage);
     complaint.timeline.push({ stage: String(stage), note: String(note || "") });
     await complaint.save();
+
+    // Create an in-app notification so the citizen sees it in their dashboard bell icon
+    try {
+      await Notification.create({
+        userId: complaint.citizen,
+        message: `Update: Your complaint regarding "${complaint.title}" has progressed to: ${stage}`,
+        complaintId: complaint._id,
+        isRead: false
+      });
+    } catch (err) {
+      console.error("Error creating stage notification:", err.message);
+    }
+
+    // Send email notification for stage/progress updates
+    try {
+      const citizenUser = await User.findById(complaint.citizen);
+      if (citizenUser && citizenUser.email) {
+        // Await directly so Vercel does not freeze the function before it finishes sending!
+        await sendStatusUpdateEmail(citizenUser.email, complaint, String(stage));
+      }
+    } catch (err) {
+      console.error("Error fetching citizen for email:", err.message);
+    }
+
     return res.json({ complaint });
-  } catch {
-    return res.status(500).json({ message: "Server error" });
+  } catch (err) {
+    console.error("Stage update error:", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 

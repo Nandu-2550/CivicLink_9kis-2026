@@ -15,14 +15,12 @@ async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
     // Configure the transporter fresh on every request (crucial for Vercel serverless)
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false, // upgrade later with STARTTLS
+      port: 465,
+      secure: true, // Use implicit TLS
       auth: {
         user: "nandunusgavai@gmail.com",
         pass: "ljuu gnae dkis csth",
-      },
-      connectionTimeout: 5000, // 5 seconds to prevent hanging
-      socketTimeout: 5000,
+      }
     });
 
     const mailOptions = {
