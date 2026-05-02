@@ -11,6 +11,29 @@ const User = require("../models/User");
 
 const router = express.Router();
 
+// Test route to debug Vercel email issues
+router.get("/test-email", async (req, res) => {
+  try {
+    const nodemailer = require("nodemailer");
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: "nandunusgavai@gmail.com",
+        pass: "ljuu gnae dkis csth",
+      },
+      connectionTimeout: 5000,
+      socketTimeout: 5000,
+    });
+
+    await transporter.verify();
+    res.json({ success: true, message: "Transporter verified successfully on Vercel!" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message, stack: error.stack });
+  }
+});
+
 const cloudinaryStorage = createCloudinaryStorage("civiclink/citizen-proofs");
 const upload = multer({ storage: cloudinaryStorage, limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -61,7 +84,7 @@ router.get("/mine", requireAuth, requireRole("citizen"), async (req, res) => {
     const complaints = await Complaint.find({ citizen: req.user.userId })
       .select("title description category status statusHistory authorityImage citizenImage location createdAt updatedAt")
       .sort({ createdAt: -1 });
-    
+
     const mappedComplaints = complaints.map(c => ({
       _id: c._id,
       title: c.title,
@@ -77,7 +100,7 @@ router.get("/mine", requireAuth, requireRole("citizen"), async (req, res) => {
       updatedAt: c.updatedAt,
       attachmentUrl: c.attachmentUrl || c.citizenImage || ""
     }));
-    
+
     return res.json({ complaints: mappedComplaints });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -109,7 +132,7 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
   try {
     const { status, note } = req.body;
     const validStatuses = ["Pending", "Under Review", "In Progress", "Resolved"];
-    
+
     if (!status || !validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status. Must be one of: " + validStatuses.join(", ") });
     }
@@ -121,7 +144,7 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
 
     // Update status
     complaint.status = status;
-    
+
     // Ensure the history array exists before pushing
     if (!Array.isArray(complaint.statusHistory)) {
       complaint.statusHistory = [];
@@ -150,17 +173,14 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
     try {
       const citizenUser = await User.findById(complaint.citizen);
       if (citizenUser && citizenUser.email) {
-        // Await the email with a 4-second timeout to prevent Vercel function freeze/504 errors
-        await Promise.race([
-          sendStatusUpdateEmail(citizenUser.email, complaint, status),
-          new Promise((resolve) => setTimeout(resolve, 4000))
-        ]);
+        // Await directly to ensure the email completely leaves the server before Vercel freezes the function!
+        await sendStatusUpdateEmail(citizenUser.email, complaint, status);
       }
     } catch (err) {
       console.error("Error fetching citizen for email:", err.message);
     }
 
-    return res.json({ 
+    return res.json({
       message: "Status updated successfully",
       complaint: {
         _id: complaint._id,
@@ -183,7 +203,7 @@ router.get("/:id", requireAuth, async (req, res) => {
     const complaint = await Complaint.findById(req.params.id)
       .populate("citizen", "name email")
       .lean();
-    
+
     if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
     }
@@ -191,7 +211,7 @@ router.get("/:id", requireAuth, async (req, res) => {
     // Check if user is authorized to view
     const isCitizen = complaint.citizen._id.toString() === req.user.userId;
     const isAuthority = req.user.role === "authority";
-    
+
     if (!isCitizen && !isAuthority) {
       return res.status(403).json({ message: "Not authorized to view this complaint" });
     }
