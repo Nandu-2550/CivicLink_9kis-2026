@@ -4,6 +4,7 @@ import { API_BASE_URL } from './api/config';
 import { 
   Zap, 
   Eye, 
+  EyeOff, 
   Shield, 
   TrendingUp, 
   Mail,
@@ -266,6 +267,7 @@ function CitizenAuth({ onAuthed }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
@@ -351,13 +353,22 @@ function CitizenAuth({ onAuthed }) {
         
         <div>
           <label className="text-xs text-white/50 mb-2 block">Password</label>
-          <input 
-            className="input" 
-            type="password"
-            placeholder="Minimum 6 characters"
-            value={form.password} 
-            onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))} 
-          />
+          <div className="relative">
+            <input 
+              className="input pr-12" 
+              type={showPassword ? "text" : "password"}
+              placeholder="Minimum 6 characters"
+              value={form.password} 
+              onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))} 
+            />
+            <button
+              type="button"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
         </div>
 
         {err && (
@@ -757,6 +768,7 @@ function AuthorityAuth({ onAuthed }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [form, setForm] = useState({ category: "Police", secretCode: "" });
+  const [showSecret, setShowSecret] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
@@ -826,13 +838,22 @@ function AuthorityAuth({ onAuthed }) {
         {/* Secret Code Input */}
         <div>
           <label className="text-xs text-white/50 mb-2 block">Secret Code</label>
-          <input 
-            className="input" 
-            placeholder="Enter your authority secret code"
-            type="password"
-            value={form.secretCode} 
-            onChange={(e) => setForm((s) => ({ ...s, secretCode: e.target.value }))} 
-          />
+          <div className="relative">
+            <input 
+              className="input pr-12" 
+              placeholder="Enter your authority secret code"
+              type={showSecret ? "text" : "password"}
+              value={form.secretCode} 
+              onChange={(e) => setForm((s) => ({ ...s, secretCode: e.target.value }))} 
+            />
+            <button
+              type="button"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+              onClick={() => setShowSecret(!showSecret)}
+            >
+              {showSecret ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
         </div>
 
         {err && (
