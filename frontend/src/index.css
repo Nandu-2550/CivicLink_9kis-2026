@@ -25,22 +25,75 @@ body {
 }
 
 @keyframes aurora-drift {
-  0% { background-position: 0% 0%; }
-  50% { background-position: 100% 100%; }
-  100% { background-position: 0% 0%; }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes blob-move {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
 }
 
 .bg-aurora {
-  background:
-    radial-gradient(1000px 600px at 10% 10%, rgba(56, 189, 248, 0.15), transparent 60%),
-    radial-gradient(1200px 700px at 90% 20%, rgba(168, 85, 247, 0.12), transparent 55%),
-    radial-gradient(800px 600px at 50% 90%, rgba(34, 197, 94, 0.08), transparent 55%),
-    radial-gradient(600px 400px at 30% 50%, rgba(244, 63, 94, 0.05), transparent 50%),
-    linear-gradient(180deg, #050508 0%, #0a0a14 100%);
+  background: 
+    radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(34, 197, 94, 0.05) 0%, transparent 50%),
+    #050508;
   background-attachment: fixed;
-  background-size: 200% 200%;
-  animation: aurora-drift 60s ease infinite;
-  transition: all 0.5s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.bg-aurora::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, rgba(176, 196, 222, 0.03) 0%, transparent 70%);
+  animation: aurora-drift 30s linear infinite;
+  pointer-events: none;
+}
+
+.blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  opacity: 0.4;
+  pointer-events: none;
+  animation: blob-move 20s ease-in-out infinite;
+}
+
+.blob-1 {
+  width: 400px;
+  height: 400px;
+  background: rgba(14, 165, 233, 0.2);
+  top: -100px;
+  right: -100px;
+  animation-delay: 0s;
+}
+
+.blob-2 {
+  width: 350px;
+  height: 350px;
+  background: rgba(168, 85, 247, 0.15);
+  bottom: -50px;
+  left: -100px;
+  animation-delay: -5s;
+}
+
+.blob-3 {
+  width: 300px;
+  height: 300px;
+  background: rgba(34, 197, 94, 0.1);
+  top: 40%;
+  left: 20%;
+  animation-delay: -10s;
 }
 
 .glass {

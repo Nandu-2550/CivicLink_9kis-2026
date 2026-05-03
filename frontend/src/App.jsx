@@ -1218,9 +1218,14 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-full bg-aurora">
+    <div className="min-h-full bg-aurora relative">
+      {/* Background Decorative Blobs */}
+      <div className="blob blob-1"></div>
+      <div className="blob blob-2"></div>
+      <div className="blob blob-3"></div>
+      
       <TopBar mode={mode} setMode={setMode} who={who} onLogout={logout} />
-      <div className="mx-auto max-w-6xl px-4 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-10 relative z-10">
         {!citizen && !authority ? (
           <div className="max-w-7xl mx-auto">
             {/* Enhanced Hero Section - Always visible but adapts */}
@@ -1230,7 +1235,7 @@ export default function App() {
               <img 
                 src="/logo.png" 
                 alt="CivicLink" 
-                className={`mx-auto mb-6 object-contain animate-float transition-all duration-1000 ${
+                className={`mx-auto mb-6 object-contain animate-logo-pulse transition-all duration-1000 ${
                   activeView !== "landing" ? "h-16" : "h-32"
                 }`}
               />
