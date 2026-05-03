@@ -6,29 +6,26 @@ const Notification = require("../models/Notification");
 const { routeCategory } = require("../utils/aiRouter");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { createCloudinaryStorage } = require("../config/cloudinary");
-const { sendStatusUpdateEmail } = require("../utils/email");
+const { sendStatusUpdateEmail, sendComplaintFiledEmail } = require("../utils/email");
 const User = require("../models/User");
 
 const router = express.Router();
 
-// Test route to debug Vercel email issues
+// Test route to debug email issues
 router.get("/test-email", async (req, res) => {
   try {
-    const nodemailer = require("nodemailer");
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user: "nandunusgavai@gmail.com",
-        pass: "ljuu gnae dkis csth",
-      },
-      connectionTimeout: 5000,
-      socketTimeout: 5000,
-    });
-
-    await transporter.verify();
-    res.json({ success: true, message: "Transporter verified successfully on Vercel!" });
+    const mockComplaint = {
+      _id: "test-id",
+      title: "Test Email Verification"
+    };
+    // Use the optimized utility
+    const info = await sendStatusUpdateEmail(process.env.EMAIL_USER, mockComplaint, "Testing");
+    
+    if (info) {
+      res.json({ success: true, message: "Email sent successfully!", info });
+    } else {
+      res.status(500).json({ success: false, message: "Email dispatch failed. Check server logs." });
+    }
   } catch (error) {
     res.status(500).json({ success: false, error: error.message, stack: error.stack });
   }
@@ -70,6 +67,17 @@ router.post("/", requireAuth, requireRole("citizen"), upload.single("file"), asy
       citizenImage,
       attachmentUrl: citizenImage
     });
+
+    // Notify the citizen that their complaint was received
+    try {
+      const citizenUser = await User.findById(req.user.userId);
+      if (citizenUser && citizenUser.email) {
+        // Await to ensure it completes before Vercel freezes, but in a separate try/catch
+        await sendComplaintFiledEmail(citizenUser.email, complaint);
+      }
+    } catch (emailErr) {
+      console.error("[ComplaintCreation] Failed to send confirmation email:", emailErr.message);
+    }
 
     return res.status(201).json({ complaint });
   } catch (err) {
@@ -194,15 +202,18 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
 
     // Send email notification for status updates
     try {
-      await complaint.populate('citizen');
-      if (complaint.citizen && complaint.citizen.email) {
+      // Robustly fetch citizen email directly from the User model to ensure we have the most current data
+      const citizenUser = await User.findById(complaint.citizen);
+      
+      if (citizenUser && citizenUser.email) {
+        console.log(`[StatusUpdate] Attempting to notify citizen: ${citizenUser.email} (ID: ${complaint.citizen}) about status: ${status}`);
         // Await directly to ensure the email completely leaves the server before Vercel freezes the function!
-        await sendStatusUpdateEmail(complaint.citizen.email, complaint, status);
+        await sendStatusUpdateEmail(citizenUser.email, complaint, status);
       } else {
-        console.error("Citizen email is missing, cannot send status update email.");
+        console.error(`[StatusUpdate] Cannot send email. Citizen or email missing. ID: ${complaint.citizen}, Found: ${!!citizenUser}`);
       }
     } catch (err) {
-      console.error("Error fetching citizen for email:", err.message);
+      console.error("[StatusUpdate] Critical error during email dispatch sequence:", err.message);
     }
 
     return res.json({

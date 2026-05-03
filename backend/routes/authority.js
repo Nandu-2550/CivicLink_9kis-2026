@@ -4,8 +4,6 @@ const Complaint = require("../models/Complaint");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { CATEGORIES } = require("../utils/aiRouter");
 const User = require("../models/User");
-const { sendStatusUpdateEmail } = require("../utils/email");
-const Notification = require("../models/Notification");
 
 const router = express.Router();
 

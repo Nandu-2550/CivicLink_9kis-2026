@@ -244,7 +244,7 @@ function TopBar({ mode, setMode, who, onLogout }) {
           <img 
             src="/logo.png" 
             alt="CivicLink Logo" 
-            className="h-11 w-11 object-contain animate-float drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" 
+            className="h-11 w-11 object-contain animate-logo-pulse drop-shadow-[0_0_15px_rgba(255,255,255,0.15)]" 
           />
           <div>
             <div className="text-xl font-black leading-tight gradient-text tracking-tighter">CivicLink</div>
