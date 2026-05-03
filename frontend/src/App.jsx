@@ -241,11 +241,13 @@ function TopBar({ mode, setMode, who, onLogout }) {
     <div className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/50 backdrop-blur-xl">
       <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-cyan-400/15 border border-cyan-300/20 grid place-items-center font-semibold">
-            CL
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="CivicLink Logo" 
+            className="h-11 w-11 object-contain animate-float drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" 
+          />
           <div>
-            <div className="text-lg font-semibold leading-tight">CivicLink</div>
+            <div className="text-xl font-black leading-tight gradient-text tracking-tighter">CivicLink</div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -933,6 +935,8 @@ function AuthorityApp({ token, authority }) {
         setProofUpdated((s) => ({ ...s, [id]: true }));
         setTimeout(() => setProofUpdated((s) => ({ ...s, [id]: false })), 3000);
       }
+      // Refresh all data to sync history and new fields
+      await load();
     } catch (ex) {
       setErr(ex.message);
     } finally {
@@ -1223,6 +1227,13 @@ export default function App() {
             <div className={`text-center transition-all duration-700 animate-fade-in ${
               activeView !== "landing" ? "mb-8 opacity-60 scale-90" : "mb-12"
             }`}>
+              <img 
+                src="/logo.png" 
+                alt="CivicLink" 
+                className={`mx-auto mb-6 object-contain animate-float transition-all duration-1000 ${
+                  activeView !== "landing" ? "h-16" : "h-32"
+                }`}
+              />
               <h1 className={`font-bold mb-4 gradient-text transition-all duration-1000 animate-reveal ${
                 activeView !== "landing" 
                   ? "text-4xl md:text-5xl" 
