@@ -61,47 +61,4 @@ router.get("/complaints", requireAuth, requireRole("authority"), async (req, res
   }
 });
 
-router.patch("/complaints/:id/stage", requireAuth, requireRole("authority"), async (req, res) => {
-  try {
-    const { stage, note } = req.body || {};
-    if (!stage) return res.status(400).json({ message: "Missing stage" });
-
-    const complaint = await Complaint.findById(req.params.id);
-    if (!complaint) return res.status(404).json({ message: "Not found" });
-    if (complaint.category !== req.user.category) return res.status(403).json({ message: "Forbidden" });
-
-    complaint.currentStage = String(stage);
-    complaint.timeline.push({ stage: String(stage), note: String(note || "") });
-    await complaint.save();
-
-    // Create an in-app notification so the citizen sees it in their dashboard bell icon
-    try {
-      await Notification.create({
-        userId: complaint.citizen,
-        message: `Update: Your complaint regarding "${complaint.title}" has progressed to: ${stage}`,
-        complaintId: complaint._id,
-        isRead: false
-      });
-    } catch (err) {
-      console.error("Error creating stage notification:", err.message);
-    }
-
-    // Send email notification for stage/progress updates
-    try {
-      const citizenUser = await User.findById(complaint.citizen);
-      if (citizenUser && citizenUser.email) {
-        // Await directly so Vercel does not freeze the function before it finishes sending!
-        await sendStatusUpdateEmail(citizenUser.email, complaint, String(stage));
-      }
-    } catch (err) {
-      console.error("Error fetching citizen for email:", err.message);
-    }
-
-    return res.json({ complaint });
-  } catch (err) {
-    console.error("Stage update error:", err);
-    return res.status(500).json({ message: "Server error", error: err.message });
-  }
-});
-
 module.exports = router;

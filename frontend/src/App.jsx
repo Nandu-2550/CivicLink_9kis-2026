@@ -505,9 +505,11 @@ function CitizenApp({ token, user }) {
     );
     try {
       const fileToUpload = authFile[complaintId] || null;
-      await api.updateStatus(token, complaintId, newStatus, "", fileToUpload);
+      const note = noteDraft[complaintId] || "";
+      await api.updateStatus(token, complaintId, newStatus, note, fileToUpload);
       setMsg(`Status updated to ${newStatus}`);
       setAuthFile((prev) => ({ ...prev, [complaintId]: null }));
+      setNoteDraft((prev) => ({ ...prev, [complaintId]: "" }));
     } catch (ex) {
       setErr(ex.message);
     } finally {
@@ -672,6 +674,33 @@ function CitizenApp({ token, user }) {
                 />
 
                 <StatusStepper currentStatus={c.status} />
+
+                {/* Activity History for Citizen */}
+                {c.statusHistory && c.statusHistory.length > 0 && (
+                  <div className="mt-6 pt-4 border-t border-white/5 animate-reveal">
+                    <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-3 flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      Activity Log
+                    </div>
+                    <div className="space-y-4">
+                      {c.statusHistory.slice().reverse().map((h, i) => (
+                        <div key={i} className="flex gap-4 group">
+                          <div className="relative flex flex-col items-center shrink-0">
+                            <div className="w-2 h-2 rounded-full bg-slate-700 group-hover:bg-blue-400 transition-colors" />
+                            {i !== c.statusHistory.length - 1 && <div className="w-[1px] h-full bg-slate-800" />}
+                          </div>
+                          <div className="pb-2">
+                            <div className="text-xs font-semibold text-slate-200">{h.step}</div>
+                            {h.note && <div className="text-xs text-slate-400 mt-1 italic">"{h.note}"</div>}
+                            <div className="text-[10px] text-slate-500 mt-1 font-mono">
+                              {new Date(h.date || h.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 {/* Authority-only Status Update Panel */}
                 {user?.role === 'authority' && (
@@ -868,7 +897,12 @@ function AuthorityApp({ token, authority }) {
   }, []);
 
   async function update(id) {
-    await api.updateStage(token, id, stageDraft[id] || "In Review", noteDraft[id] || "");
+    const note = noteDraft[id] || "";
+    const status = statusDraft[id] || "Pending";
+    const file = proofFile[id] || null;
+    await api.updateStatus(token, id, status, note, file);
+    setProofFile((s) => ({ ...s, [id]: null }));
+    setNoteDraft((s) => ({ ...s, [id]: "" }));
     await load();
   }
 
@@ -881,7 +915,7 @@ function AuthorityApp({ token, authority }) {
 
   async function quickStatusUpdate(id, newStatus) {
     setStatusUpdating((prev) => ({ ...prev, [id]: true }));
-    // Optimistic UI update for instant feedback before email dispatch
+    // Optimistic UI update
     setComplaints((prev) =>
       prev.map((c) =>
         c._id === id ? { ...c, status: newStatus } : c
@@ -889,10 +923,12 @@ function AuthorityApp({ token, authority }) {
     );
     try {
       const file = proofFile[id] || null;
-      await api.updateStatus(token, id, newStatus, "", file);
+      const note = noteDraft[id] || `Status changed to ${newStatus} by authority.`;
+      await api.updateStatus(token, id, newStatus, note, file);
       setProofFile((s) => ({ ...s, [id]: null }));
-      // Show success message if proof was uploaded
-      setShowResolutionProofUploadForId(null); // Hide upload section after successful update
+      setNoteDraft((s) => ({ ...s, [id]: "" }));
+      
+      setShowResolutionProofUploadForId(null);
       if (file) {
         setProofUpdated((s) => ({ ...s, [id]: true }));
         setTimeout(() => setProofUpdated((s) => ({ ...s, [id]: false })), 3000);
@@ -1062,9 +1098,43 @@ function AuthorityApp({ token, authority }) {
                       </button>
                     </div>
                   )}
+
+                  {/* Authority Note Input */}
+                  <div className="mt-4">
+                    <label className="text-[10px] text-slate-500 uppercase tracking-widest block mb-2 font-bold">Progress Note</label>
+                    <textarea 
+                      className="input text-xs min-h-[60px]" 
+                      placeholder="Add an internal or public note for this update..."
+                      value={noteDraft[c._id] || ""}
+                      onChange={(e) => setNoteDraft(prev => ({ ...prev, [c._id]: e.target.value }))}
+                    />
+                  </div>
                 </div>
               )}
                 
+                {/* Activity History for Authority */}
+                {c.statusHistory && c.statusHistory.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-white/5">
+                    <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-3">Case History</div>
+                    <div className="space-y-4">
+                      {c.statusHistory.slice().reverse().map((h, i) => (
+                        <div key={i} className="flex gap-4">
+                          <div className="shrink-0 pt-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-semibold text-slate-300">{h.step}</div>
+                            {h.note && <div className="text-xs text-slate-400 mt-1 italic">"{h.note}"</div>}
+                            <div className="text-[10px] text-slate-500 mt-1">
+                              {new Date(h.date || h.timestamp).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Success message when proof is updated */}
                 {proofUpdated[c._id] && (
                   <div className="mt-3 text-xs text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 rounded-lg p-2 text-center animate-pulse">
@@ -1150,121 +1220,120 @@ export default function App() {
         {!citizen && !authority ? (
           <div className="max-w-7xl mx-auto">
             {/* Enhanced Hero Section - Always visible but adapts */}
-            <div className={`text-center transition-all duration-700 ${
-              activeView !== "landing" ? "mb-8" : "mb-12"
+            <div className={`text-center transition-all duration-700 animate-fade-in ${
+              activeView !== "landing" ? "mb-8 opacity-60 scale-90" : "mb-12"
             }`}>
-              <h1 className={`font-bold mb-4 gradient-text transition-all duration-700 ${
+              <h1 className={`font-bold mb-4 gradient-text transition-all duration-1000 animate-reveal ${
                 activeView !== "landing" 
                   ? "text-4xl md:text-5xl" 
-                  : "text-5xl md:text-6xl animate-fade-in"
+                  : "text-6xl md:text-8xl"
               }`}>
-                Welcome to CivicLink
+                CivicLink
               </h1>
               {activeView === "landing" && (
-                <>
-                  <p className="text-2xl md:text-3xl font-semibold text-white mb-3 animate-fade-in stagger-1">
-                    Your Voice, Your City
+                <div className="animate-slide-up-in">
+                  <p className="text-3xl md:text-4xl font-light text-white/90 mb-6 tracking-tight">
+                    Your Voice, <span className="font-bold text-blue-400">Your City</span>
                   </p>
-                  <p className="text-lg text-white/60 max-w-3xl mx-auto leading-relaxed animate-fade-in stagger-2">
-                    Report issues, track progress, and help build a better community quickly and transparently.
-                    <br className="hidden md:block" />
-                    Making Civic Engagement Simple and Effective.
+                  <p className="text-xl text-white/50 max-w-2xl mx-auto leading-relaxed stagger-2">
+                    A next-generation platform for transparent community engagement. 
+                    Report issues, track progress, and build a better future together.
                   </p>
-                </>
+                </div>
               )}
             </div>
 
             {/* Landing View - Cards and Features */}
             {activeView === "landing" && (
-              <div className="animate-fade-in">
+              <div className="animate-fade-in stagger-3">
                 {/* Selection Cards */}
-                <div className="grid md:grid-cols-2 gap-6 mb-12 max-w-5xl mx-auto">
+                <div className="grid md:grid-cols-2 gap-8 mb-20 max-w-5xl mx-auto">
                   {/* Citizen Box */}
                   <div 
-                    className="glass-card rounded-2xl p-8 cursor-pointer transition-all duration-500 hover:scale-105 hover:shadow-2xl group"
+                    className="glass-card rounded-3xl p-10 cursor-pointer group"
                     onClick={() => handleModeSelect("citizen")}
                   >
                     <div className="text-center">
-                      <div className="text-7xl mb-6 transform transition-transform duration-300 group-hover:scale-110">👤</div>
-                      <h3 className="text-3xl font-bold text-white mb-4">For Citizens</h3>
-                      <p className="text-white/60 mb-8 leading-relaxed text-lg">
-                        Raise complaints, upload evidence, and track the status of your reports in real-time.
+                      <div className="text-8xl mb-8 animate-float">👤</div>
+                      <h3 className="text-3xl font-bold text-white mb-4 group-hover:text-blue-300 transition-colors">For Citizens</h3>
+                      <p className="text-white/40 mb-10 leading-relaxed text-lg">
+                        Raise complaints, upload evidence, and track reports in real-time with Institutional-grade transparency.
                       </p>
-                      <button className="btn btn-primary w-full glow-effect text-lg py-4">
-                        Get Started →
+                      <button className="btn btn-primary w-full text-lg py-5 group-hover:scale-105 transition-transform">
+                        Launch Dashboard
                       </button>
                     </div>
                   </div>
 
                   {/* Authority Box */}
                   <div 
-                    className="glass-card rounded-2xl p-8 cursor-pointer transition-all duration-500 hover:scale-105 hover:shadow-2xl group"
+                    className="glass-card rounded-3xl p-10 cursor-pointer group"
                     onClick={() => handleModeSelect("authority")}
                   >
                     <div className="text-center">
-                      <div className="text-7xl mb-6 transform transition-transform duration-300 group-hover:scale-110">🏛️</div>
-                      <h3 className="text-3xl font-bold text-white mb-4">For Authorities</h3>
-                      <p className="text-white/60 mb-8 leading-relaxed text-lg">
-                        Manage and resolve complaints efficiently with our streamlined dashboard.
+                      <div className="text-8xl mb-8 animate-float [animation-delay:0.5s]">🏛️</div>
+                      <h3 className="text-3xl font-bold text-white mb-4 group-hover:text-purple-300 transition-colors">For Authorities</h3>
+                      <p className="text-white/40 mb-10 leading-relaxed text-lg">
+                        Secure governance portal for managing civic issues with advanced analytics and resolution tracking.
                       </p>
-                      <button className="btn btn-primary w-full glow-effect text-lg py-4">
-                        Access Portal →
+                      <button className="btn btn-primary w-full text-lg py-5 group-hover:scale-105 transition-transform">
+                        Access Portal
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Features Grid - Modern Design */}
-                <div className="mt-24 max-w-7xl mx-auto">
-                  <div className="text-center mb-12">
-                    <h2 className="text-4xl font-bold text-white mb-4">Why Choose CivicLink?</h2>
-                    <p className="text-lg text-white/60 max-w-2xl mx-auto">
-                      Powerful features designed to make civic engagement seamless and effective
+                {/* Features Grid - Premium Design */}
+                <div className="mt-32 max-w-7xl mx-auto mb-20">
+                  <div className="text-center mb-16 animate-reveal">
+                    <h2 className="text-4xl font-bold text-white mb-4">Precision Features</h2>
+                    <p className="text-lg text-white/40 max-w-2xl mx-auto">
+                      Engineered for efficiency, built for the community.
                     </p>
                   </div>
                   
-                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
                     {/* Instant Reporting */}
-                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
-                      <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center mb-6">
+                    <div className="glass-card rounded-2xl p-8 hover:-translate-y-3 transition-all duration-500">
+                      <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/20">
                         <Zap className="w-7 h-7 text-white" />
                       </div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-3">Instant Reporting</h3>
-                      <p className="text-slate-600 leading-relaxed">
-                        File grievances in seconds with our optimized mobile-first complaint system.
+                      <h3 className="text-xl font-bold text-white mb-3">Rapid File</h3>
+                      <p className="text-white/40 leading-relaxed text-sm">
+                        Submit grievances in seconds with our optimized mobile-first edge submission.
                       </p>
                     </div>
 
                     {/* Live Tracking */}
-                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
-                      <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center mb-6">
+                    <div className="glass-card rounded-2xl p-8 hover:-translate-y-3 transition-all duration-500 [animation-delay:0.1s]">
+                      <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-pink-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-purple-500/20">
                         <Eye className="w-7 h-7 text-white" />
                       </div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-3">Live Tracking</h3>
-                      <p className="text-slate-600 leading-relaxed">
-                        Follow the journey of your complaint from submission to final resolution with real-time logs.
+                      <h3 className="text-xl font-bold text-white mb-3">Live Ledger</h3>
+                      <p className="text-white/40 leading-relaxed text-sm">
+                        Immutable tracking of your complaint from submission to verified resolution.
                       </p>
                     </div>
 
                     {/* Secure & Private */}
-                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
-                      <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center mb-6">
+                    <div className="glass-card rounded-2xl p-8 hover:-translate-y-3 transition-all duration-500 [animation-delay:0.2s]">
+                      <div className="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20">
                         <Shield className="w-7 h-7 text-white" />
                       </div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-3">Secure & Private</h3>
-                      <p className="text-slate-600 leading-relaxed">
-                        Your data is protected by institutional-grade encryption and strict privacy protocols.
+                      <h3 className="text-xl font-bold text-white mb-3">Vault Security</h3>
+                      <p className="text-white/40 leading-relaxed text-sm">
+                        Your data is protected by institutional-grade encryption and privacy protocols.
                       </p>
                     </div>
 
                     {/* Data Insights */}
-                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
-                      <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center mb-6">
+                    <div className="glass-card rounded-2xl p-8 hover:-translate-y-3 transition-all duration-500 [animation-delay:0.3s]">
+                      <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-amber-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-orange-500/20">
                         <TrendingUp className="w-7 h-7 text-white" />
                       </div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-3">Data Insights</h3>
-                      <p className="text-slate-600 leading-relaxed">
-                        Powerful analytics help authorities identify and solve recurring civic issues faster.
+                      <h3 className="text-xl font-bold text-white mb-3">Civic Insights</h3>
+                      <p className="text-white/40 leading-relaxed text-sm">
+                        AI-powered analytics identifying recurring patterns to solve issues before they scale.
                       </p>
                     </div>
                   </div>

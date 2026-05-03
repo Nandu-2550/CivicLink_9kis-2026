@@ -12,6 +12,7 @@ const timelineItemSchema = new mongoose.Schema(
 const statusHistorySchema = new mongoose.Schema(
   {
     step: { type: String, required: true },
+    note: { type: String, default: "" },
     date: { type: Date, default: Date.now }
   },
   { _id: false }

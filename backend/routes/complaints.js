@@ -142,14 +142,37 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
       return res.status(404).json({ message: "Complaint not found" });
     }
 
-    // Update status
+    // Security Check: Ensure authority category matches complaint category
+    if (req.user.role === "authority" && req.user.category && complaint.category !== req.user.category) {
+      return res.status(403).json({ message: `Forbidden: As the ${req.user.category} authority, you cannot update complaints in the ${complaint.category} category.` });
+    }
+
+    // Update main status
     complaint.status = status;
+    
+    // Synchronize currentStage for backward compatibility
+    complaint.currentStage = status;
 
     // Ensure the history array exists before pushing
     if (!Array.isArray(complaint.statusHistory)) {
       complaint.statusHistory = [];
     }
-    complaint.statusHistory.push({ step: status, date: new Date() });
+    
+    // Save to statusHistory with the note
+    complaint.statusHistory.push({ 
+      step: status, 
+      note: String(note || "").trim(), 
+      date: new Date() 
+    });
+
+    // Also update timeline for consistency if it exists
+    if (Array.isArray(complaint.timeline)) {
+      complaint.timeline.push({
+        stage: status,
+        note: String(note || "").trim(),
+        at: new Date()
+      });
+    }
 
     // Handle authority resolution proof image (Cloudinary URL only)
     const authorityImageUrl = req.file?.path || req.file?.secure_url || req.file?.url;
