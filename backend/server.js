@@ -15,7 +15,12 @@ const notificationRoutes = require("./routes/notifications");
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: "*", // Allows all origins, including your Vercel deployment
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}));
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 
