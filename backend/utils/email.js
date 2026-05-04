@@ -30,9 +30,10 @@ async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
     }
 
     // Configure the transporter
-    // Using the 'service' option for Gmail is the recommended and most optimized approach
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true, // Use SSL
       auth: {
         user: emailUser,
         pass: emailPass,
@@ -90,7 +91,9 @@ async function sendComplaintFiledEmail(toEmail, complaint) {
   try {
     const loginLink = process.env.FRONTEND_URL || "https://civic-link-9kis-2026.vercel.app/";
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
