@@ -38,10 +38,10 @@ async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
         user: emailUser,
         pass: emailPass,
       },
-      // Timeouts are important for serverless environments to avoid hanging functions
+      tls: {
+        rejectUnauthorized: false // Helps in some restricted environments
+      },
       connectionTimeout: 10000, 
-      greetingTimeout: 10000,
-      socketTimeout: 15000
     });
 
     const mailOptions = {

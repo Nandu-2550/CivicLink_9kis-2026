@@ -214,6 +214,7 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
       }
     } catch (err) {
       console.error("[StatusUpdate] Critical error during email dispatch sequence:", err.message);
+      if (err.stack) console.error(err.stack);
     }
 
     return res.json({
