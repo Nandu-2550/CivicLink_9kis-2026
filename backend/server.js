@@ -3,9 +3,11 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-const dotenv = require("dotenv");
+const helmet = require("helmet");
+const { validateEnv } = require("./config/env");
 
 dotenv.config();
+validateEnv(); // Ensure all required keys exist before starting
 
 const { connectDb } = require("./config/db");
 const authRoutes = require("./routes/auth");
@@ -15,8 +17,9 @@ const notificationRoutes = require("./routes/notifications");
 
 const app = express();
 
+app.use(helmet()); // Professional security headers
 app.use(cors({
-  origin: "*", // Allows all origins, including your Vercel deployment
+  origin: "*",
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
@@ -37,7 +40,15 @@ app.use("/api/complaints", complaintRoutes);
 app.use("/api/authority", authorityRoutes);
 app.use("/api/notifications", notificationRoutes);
 
-app.use((req, res) => res.status(404).json({ message: "Not found" }));
+// Global Error Handler (Professional centralized logging)
+app.use((err, req, res, next) => {
+  console.error(`[GlobalError] ${req.method} ${req.url} >>`, err.message);
+  if (err.stack) console.error(err.stack);
+  res.status(err.status || 500).json({ 
+    message: err.message || "Internal Server Error",
+    error: process.env.NODE_ENV === "development" ? err.message : undefined
+  });
+});
 
 // Connect to MongoDB
 connectDb(process.env.MONGO_URI).catch((err) => console.error("Database connection failed:", err.message));
