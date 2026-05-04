@@ -7,7 +7,7 @@ const CATEGORIES = ["Police", "School/University", "Municipality", "Consumer/Cyb
 export function AuthorityAuth({ onAuthed }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
-  const [form, setForm] = useState({ category: "Police", secretCode: "" });
+  const [form, setForm] = useState({ category: "Police", email: "", password: "", deptCode: "" });
   const [showSecret, setShowSecret] = useState(false);
 
   async function submit(e) {
@@ -45,8 +45,24 @@ export function AuthorityAuth({ onAuthed }) {
             </button>
           ))}
         </div>
+        <input 
+          className="input" 
+          type="email" 
+          placeholder="Authority Email" 
+          value={form.email} 
+          onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} 
+        />
         <div className="relative">
-          <input className="input pr-12" placeholder="Secret Code" type={showSecret ? "text" : "password"} value={form.secretCode} onChange={(e) => setForm((s) => ({ ...s, secretCode: e.target.value }))} />
+          <input 
+            className="input pr-12" 
+            type={showSecret ? "text" : "password"} 
+            placeholder="Authority Password" 
+            value={form.password} 
+            onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))} 
+          />
+        </div>
+        <div className="relative">
+          <input className="input pr-12" placeholder="Department Secret Code" type={showSecret ? "text" : "password"} value={form.deptCode} onChange={(e) => setForm((s) => ({ ...s, deptCode: e.target.value }))} />
           <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40" onClick={() => setShowSecret(!showSecret)}>
             {showSecret ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>

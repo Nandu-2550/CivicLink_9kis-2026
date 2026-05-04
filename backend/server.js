@@ -20,9 +20,9 @@ const app = express();
 
 app.use(helmet()); // Professional security headers
 app.use(cors({
-  origin: "*",
+  origin: ["https://civic-link-9kis-2026.vercel.app", "http://localhost:5173", "http://localhost:3000"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: true
 }));
 app.use(express.json({ limit: "1mb" }));

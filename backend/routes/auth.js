@@ -33,6 +33,7 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
+  console.log("[CitizenAuth] Login attempt with payload:", req.body);
   try {
     const { email, password } = req.body || {};
     if (!email || !password) return res.status(400).json({ message: "Missing fields" });

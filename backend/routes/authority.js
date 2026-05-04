@@ -1,5 +1,6 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 const Complaint = require("../models/Complaint");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { CATEGORIES } = require("../utils/aiRouter");
@@ -16,17 +17,56 @@ function parseCodes() {
 }
 
 router.post("/login", async (req, res) => {
-  const { category, secretCode } = req.body || {};
-  if (!category || !secretCode) return res.status(400).json({ message: "Missing fields" });
-  if (!CATEGORIES.includes(String(category))) return res.status(400).json({ message: "Invalid category" });
+  const { category, deptCode, secretCode, email, password } = req.body || {};
+  const code = deptCode || secretCode;
 
-  const expected = parseCodes()[String(category)];
-  if (!expected || String(secretCode) !== String(expected)) return res.status(401).json({ message: "Invalid credentials" });
+  console.log(`[AuthorityLogin] Attempt for ${category} by ${email}`);
 
-  const token = jwt.sign({ role: "authority", category: String(category) }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d"
-  });
-  return res.json({ token, authority: { category: String(category) } });
+  if (!email || !password) return res.status(400).json({ message: "Error: Email and Password are required" });
+  if (!category) return res.status(400).json({ message: "Error: Category is required" });
+  if (!code) return res.status(400).json({ message: "Error: Department Secret Code is required" });
+
+  try {
+    // 1. Verify User Credentials
+    const user = await User.findOne({ email: String(email).toLowerCase().trim() });
+    if (!user) return res.status(401).json({ message: "Authentication Failed: User not found" });
+
+    const isMatch = await bcrypt.compare(String(password), user.passwordHash);
+    if (!isMatch) return res.status(401).json({ message: "Authentication Failed: Incorrect password" });
+
+    // 2. Verify Department Category
+    if (!CATEGORIES.includes(category)) {
+      return res.status(400).json({ message: "Error: Invalid department category" });
+    }
+
+    // 3. Verify Department Secret Code
+    const codes = parseCodes();
+    const expected = codes[category];
+
+    if (!expected) {
+      return res.status(401).json({ message: "Error: No secret code configured for this department" });
+    }
+
+    if (String(code) !== String(expected)) {
+      return res.status(401).json({ message: "Authentication Failed: Incorrect Department Secret Code" });
+    }
+
+    // 4. Issue Authority Token
+    const token = jwt.sign(
+      { role: "authority", category, userId: user._id.toString() },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
+    );
+
+    return res.json({ 
+      token, 
+      authority: { category, name: user.name },
+      message: "Authority authentication successful"
+    });
+  } catch (err) {
+    console.error("Authority login error:", err);
+    return res.status(500).json({ message: "Internal server error during authentication" });
+  }
 });
 
 router.get("/complaints", requireAuth, requireRole("authority"), async (req, res) => {
