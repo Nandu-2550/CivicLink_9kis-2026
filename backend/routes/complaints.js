@@ -145,75 +145,43 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
       return res.status(400).json({ message: "Invalid status. Must be one of: " + validStatuses.join(", ") });
     }
 
+    // Checkpoint 1: Request received
+    console.log(`[StatusUpdate] Received update for ID: ${req.params.id} to Status: ${status}`);
+
     const complaint = await Complaint.findById(req.params.id);
     if (!complaint) {
+      console.error(`[StatusUpdate] Complaint not found: ${req.params.id}`);
       return res.status(404).json({ message: "Complaint not found" });
     }
 
-    // Security Check: Ensure authority category matches complaint category
+    // Security Check
     if (req.user.role === "authority" && req.user.category && complaint.category !== req.user.category) {
-      return res.status(403).json({ message: `Forbidden: As the ${req.user.category} authority, you cannot update complaints in the ${complaint.category} category.` });
+      console.warn(`[StatusUpdate] Security Alert: Authority ${req.user.category} tried to access ${complaint.category}`);
+      return res.status(403).json({ message: `Forbidden...` });
     }
 
-    // Update main status
+    // Update logic
     complaint.status = status;
-    
-    // Synchronize currentStage for backward compatibility
     complaint.currentStage = status;
-
-    // Ensure the history array exists before pushing
-    if (!Array.isArray(complaint.statusHistory)) {
-      complaint.statusHistory = [];
-    }
-    
-    // Save to statusHistory with the note
-    complaint.statusHistory.push({ 
-      step: status, 
-      note: String(note || "").trim(), 
-      date: new Date() 
-    });
-
-    // Also update timeline for consistency if it exists
-    if (Array.isArray(complaint.timeline)) {
-      complaint.timeline.push({
-        stage: status,
-        note: String(note || "").trim(),
-        at: new Date()
-      });
-    }
-
-    // Handle authority resolution proof image (Cloudinary URL only)
-    const authorityImageUrl = req.file?.path || req.file?.secure_url || req.file?.url;
-    if (authorityImageUrl) {
-      complaint.authorityImage = authorityImageUrl;
-      complaint.resolutionProof = authorityImageUrl;
-    }
+    if (!Array.isArray(complaint.statusHistory)) complaint.statusHistory = [];
+    complaint.statusHistory.push({ step: status, note: String(note || "").trim(), date: new Date() });
 
     await complaint.save();
+    console.log(`[StatusUpdate] DB Save Successful for: ${req.params.id}`);
 
-    // Auto-generate notification for the citizen
-    const notificationMessage = `Update: Your complaint regarding "${complaint.title}" is now ${status}.`;
-    await Notification.create({
-      userId: complaint.citizen,
-      message: notificationMessage,
-      complaintId: complaint._id,
-      isRead: false
-    });
-
-    // Send email notification for status updates
+    // Send email notification
     try {
-      // Robustly fetch citizen email directly from the User model to ensure we have the most current data
       const citizenUser = await User.findById(complaint.citizen);
       
       if (citizenUser && citizenUser.email) {
-        console.log(`[StatusUpdate] Attempting to notify citizen: ${citizenUser.email} (ID: ${complaint.citizen}) about status: ${status}`);
-        // Await directly to ensure the email completely leaves the server before Vercel freezes the function!
+        console.log(`[StatusUpdate] Checkpoint: Found citizen email: ${citizenUser.email}. Sending now...`);
         await sendStatusUpdateEmail(citizenUser.email, complaint, status);
+        console.log(`[StatusUpdate] Checkpoint: Email function call completed.`);
       } else {
-        console.error(`[StatusUpdate] Cannot send email. Citizen or email missing. ID: ${complaint.citizen}, Found: ${!!citizenUser}`);
+        console.error(`[StatusUpdate] Checkpoint: Citizen or email missing in DB for ID: ${complaint.citizen}`);
       }
     } catch (err) {
-      console.error("[StatusUpdate] Critical error during email dispatch sequence:", err.message);
+      console.error("[StatusUpdate] Checkpoint: Email dispatch failed with error:", err.message);
       if (err.stack) console.error(err.stack);
     }
 
