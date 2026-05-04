@@ -34,19 +34,16 @@ async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
       throw new Error("Email credentials (EMAIL_USER or EMAIL_PASS) are missing in environment variables.");
     }
 
-    // Configure the transporter
+    // Configure the transporter for maximum reliability on Render
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true, // Use SSL
+      service: "gmail",
       auth: {
         user: emailUser,
         pass: emailPass,
       },
       tls: {
         rejectUnauthorized: false
-      },
-      connectionTimeout: 10000, 
+      }
     });
 
     // Verify connection before sending
@@ -113,13 +110,14 @@ async function sendComplaintFiledEmail(toEmail, complaint) {
     const emailPass = process.env.EMAIL_PASS?.trim();
     
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+      service: "gmail",
       auth: {
         user: emailUser,
         pass: emailPass,
       },
+      tls: {
+        rejectUnauthorized: false
+      }
     });
 
     const mailOptions = {
