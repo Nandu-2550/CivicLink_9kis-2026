@@ -26,7 +26,7 @@ function validateEnv() {
     for (const m of missing) {
       console.error(` - ${m}`);
     }
-    console.error("\nPlease check your .env file (local) or Render Dashboard (production).");
+    console.error("\nPlease check your .env file for local development.");
     process.exit(1); // Exit with failure
   }
 

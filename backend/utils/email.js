@@ -134,4 +134,57 @@ async function sendComplaintFiledEmail(toEmail, complaint) {
   }
 }
 
-module.exports = { sendStatusUpdateEmail, sendComplaintFiledEmail };
+async function sendEscalationEmail(complaint) {
+  const commissionerEmail = 'comm@bbmp.gov.in';
+  const ccEmail = 'support@civiclink.com';
+
+  try {
+    const transporter = nodemailer.createTransporter({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: `"CivicLink Auto-Escalation" <${process.env.EMAIL_USER}>`,
+      to: commissionerEmail,
+      cc: ccEmail,
+      subject: `🚨 CRITICAL ESCALATION: Complaint #${complaint._id} - ${complaint.title}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 700px; border: 2px solid #ef4444; border-radius: 10px; color: #374151;">
+          <div style="text-align: center; margin-bottom: 20px; background: linear-gradient(135deg, #ef4444, #dc2626); padding: 20px; border-radius: 10px; color: white;">
+            <h1 style="margin: 0; font-size: 24px;">🚨 AUTO-ESCALATION ALERT</h1>
+            <p style="margin: 5px 0 0 0; opacity: 0.9;">Complaint stalled for >48hrs</p>
+          </div>
+          <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h2 style="color: #dc2626; margin-top: 0;">Details:</h2>
+            <p><strong>ID:</strong> ${complaint._id}</p>
+            <p><strong>Title:</strong> ${complaint.title}</p>
+            <p><strong>Category:</strong> ${complaint.category}</p>
+            <p><strong>Status:</strong> <span style="color: #dc2626; font-weight: bold;">Pending (Escalated Level ${complaint.escalationLevel + 1})</span></p>
+            <p><strong>Priority:</strong> <span style="color: #dc2626; font-weight: bold;">CRITICAL</span></p>
+            <p><strong>Age:</strong> ${Math.floor((Date.now() - new Date(complaint.createdAt)) / (1000 * 60 * 60))} hours</p>
+            <p><strong>Description:</strong> ${complaint.description.substring(0, 200)}...</p>
+          </div>
+          <div style="text-align: center;">
+            <a href="${process.env.FRONTEND_URL || 'https://civic-link-9kis-2026.vercel.app/complaints/${complaint._id}'}" style="background-color: #dc2626; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">View Complaint →</a>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #fee2e2; margin: 20px 0;" />
+          <p style="color: #6b7280; font-size: 12px; text-align: center;">Automated escalation from CivicLink. Action recommended immediately.</p>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`[EscalationEmail] Sent to commissioner for complaint ${complaint._id}`);
+  } catch (error) {
+    console.error('[EscalationEmail] Failed:', error.message);
+  }
+}
+
+module.exports = { sendStatusUpdateEmail, sendComplaintFiledEmail, sendEscalationEmail };
+

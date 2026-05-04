@@ -344,3 +344,24 @@ body {
 .stagger-2 { animation-delay: 0.2s; }
 .stagger-3 { animation-delay: 0.3s; }
 .stagger-4 { animation-delay: 0.4s; }
+
+/* Critical Glow Animation */
+@keyframes critical-glow {
+  0%, 100% { 
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4), 0 0 20px rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.15);
+  }
+  50% { 
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.5);
+    background: rgba(239, 68, 68, 0.25);
+  }
+}
+
+.critical-glow {
+  animation: critical-glow 2s ease-in-out infinite;
+}
+
+.escalated-card {
+  border-left: 5px solid #ef4444;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+}

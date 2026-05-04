@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { TopBar } from "./components/TopBar";
+import { Footer } from "./components/Footer";
 import { LandingView } from "./views/LandingView";
 import { CitizenAuth } from "./auth/CitizenAuth";
 import { AuthorityAuth } from "./auth/AuthorityAuth";
@@ -45,7 +46,8 @@ export default function App() {
       <div className="blob blob-2"></div>
       <div className="blob blob-3"></div>
       
-      <TopBar who={who} onLogout={logout} />
+      <TopBar who={who} citizen={citizen} authority={authority} onLogout={logout} />
+
       
       <div className="mx-auto max-w-6xl px-4 py-10 relative z-10">
         {!citizen && !authority ? (
@@ -80,6 +82,8 @@ export default function App() {
           <AuthorityApp token={authority.token} authority={authority.authority} />
         )}
       </div>
+      
+      <Footer />
     </div>
   );
 }

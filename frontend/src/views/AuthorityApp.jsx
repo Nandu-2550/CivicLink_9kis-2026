@@ -53,7 +53,7 @@ export function AuthorityApp({ token, authority }) {
       ) : (
         <div className="grid gap-4">
           {complaints.map((c) => (
-            <div key={c._id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div key={c._id} className={`rounded-2xl border border-white/10 bg-white/5 p-5 ${c.escalationLevel > 0 || c.priority === 'CRITICAL' ? 'escalated-card' : ''}`} >
               <div className="flex justify-between font-semibold">
                 <span>{c.title}</span>
                 <span className="text-xs glass px-2 py-1 rounded-full">Citizen: {c.citizen?.name}</span>
@@ -61,7 +61,8 @@ export function AuthorityApp({ token, authority }) {
               <div className="mt-2 text-sm text-slate-300">{c.description}</div>
               <ImagePanel title="Evidence" imageUrl={c.citizenImage || c.attachmentUrl} />
               <ImagePanel title="Resolution Proof" imageUrl={c.authorityImage || c.resolutionProof} />
-              <StatusStepper currentStatus={c.status} />
+              <StatusStepper currentStatus={c.status} priority={c.priority} escalationLevel={c.escalationLevel} />
+
 
               {c.status !== "Resolved" && (
                 <div className="mt-4 p-4 rounded-xl border border-cyan-500/30 bg-cyan-400/5">

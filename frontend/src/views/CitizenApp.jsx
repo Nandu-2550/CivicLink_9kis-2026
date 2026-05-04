@@ -129,7 +129,8 @@ export function CitizenApp({ token, user }) {
               <div className="mt-2 text-sm text-slate-300">{c.description}</div>
               <ImagePanel title="Evidence" imageUrl={c.citizenImage || c.attachmentUrl} />
               <ImagePanel title="Resolution" imageUrl={c.authorityImage || c.resolutionProof} />
-              <StatusStepper currentStatus={c.status} />
+              <StatusStepper currentStatus={c.status} priority={c.priority} escalationLevel={c.escalationLevel} />
+
               {c.statusHistory && c.statusHistory.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-white/5">
                   <div className="text-[10px] uppercase text-slate-500 font-bold mb-2">History</div>

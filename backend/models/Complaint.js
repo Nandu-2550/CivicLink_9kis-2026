@@ -58,9 +58,16 @@ const complaintSchema = new mongoose.Schema(
       type: [statusHistorySchema],
       default: () => [{ step: "Pending", date: new Date() }]
     },
-    resolutionProof: { type: String, default: "" }
+    resolutionProof: { type: String, default: "" },
+    escalationLevel: { type: Number, default: 0 },
+    priority: {
+      type: String,
+      enum: ['low', 'medium', 'high', 'CRITICAL'],
+      default: 'medium'
+    }
   },
   { timestamps: true }
+
 );
 
 module.exports = mongoose.model("Complaint", complaintSchema);
