@@ -83,12 +83,17 @@ async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
       `,
     };
 
-    console.log(`[EmailService] Attempting to dispatch email to: ${toEmail}...`);
-    const info = await transporter.sendMail(mailOptions);
-    console.log("[EmailService] Email sent successfully. Message ID:", info.messageId);
-    return info;
+    console.log(`[EmailService] Attempting to send email to: ${toEmail}...`);
+    try {
+      const info = await transporter.sendMail(mailOptions);
+      console.log("[EmailService] Email sent successfully. Message ID:", info.messageId);
+      return info;
+    } catch (mailErr) {
+      console.error("[EmailService] Nodemailer sendMail execution failed:", mailErr.message);
+      throw mailErr;
+    }
   } catch (error) {
-    console.error("[EmailService] FATAL Error occurred while sending email:", error.message);
+    console.error("[EmailService] FATAL Error occurred while preparing/sending email:", error.message);
     if (error.stack) console.error(error.stack);
     return null;
   }

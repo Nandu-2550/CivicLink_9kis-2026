@@ -178,19 +178,20 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
     await complaint.save();
     console.log(`[StatusUpdate] DB Save Successful for: ${req.params.id}`);
 
-    // Send email notification (Non-blocking)
-    User.findById(complaint.citizen).then(citizenUser => {
-      if (citizenUser && citizenUser.email) {
-        console.log(`[StatusUpdate] Async Checkpoint: Found citizen email: ${citizenUser.email}. Dispatching...`);
-        sendStatusUpdateEmail(citizenUser.email, complaint, status).catch(err => {
-          console.error("[StatusUpdate] Async email dispatch failed:", err.message);
-        });
-      } else {
-        console.error(`[StatusUpdate] Async Checkpoint: Citizen or email missing in DB for ID: ${complaint.citizen}`);
+    // Send email notification (Awaited for reliability on Render)
+    try {
+      const citizenUser = await User.findById(complaint.citizen);
+      if (!citizenUser || !citizenUser.email) {
+        throw new Error("Citizen email not found in database for ID: " + complaint.citizen);
       }
-    }).catch(err => {
-      console.error("[StatusUpdate] Async User lookup failed:", err.message);
-    });
+
+      console.log(`[StatusUpdate] Found citizen email: ${citizenUser.email}. Dispatching...`);
+      await sendStatusUpdateEmail(citizenUser.email, complaint, status);
+      console.log(`[StatusUpdate] Email dispatch successful for: ${req.params.id}`);
+    } catch (emailErr) {
+      console.error("[StatusUpdate] Email dispatch failed:", emailErr.message);
+      // We don't fail the entire request if email fails, but we log it heavily
+    }
 
     return res.json({
       message: "Status updated successfully",

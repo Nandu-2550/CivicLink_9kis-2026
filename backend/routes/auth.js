@@ -27,8 +27,8 @@ router.post("/register", async (req, res) => {
     const user = await User.create({ name: String(name).trim(), email: normalizedEmail, passwordHash });
 
     return res.json({ token: signToken(user), user: { id: user._id, name: user.name, email: user.email } });
-  } catch {
-    return res.status(500).json({ message: "Server error" });
+  } catch (err) {
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
@@ -45,8 +45,8 @@ router.post("/login", async (req, res) => {
     if (!ok) return res.status(401).json({ message: "Invalid credentials" });
 
     return res.json({ token: signToken(user), user: { id: user._id, name: user.name, email: user.email } });
-  } catch {
-    return res.status(500).json({ message: "Server error" });
+  } catch (err) {
+    return res.status(400).json({ message: "Bad Request", error: err.message });
   }
 });
 

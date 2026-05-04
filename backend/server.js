@@ -17,7 +17,7 @@ const authorityRoutes = require("./routes/authority");
 const notificationRoutes = require("./routes/notifications");
 
 const app = express();
-
+app.use(express.json({ limit: "1mb" }));
 app.use(helmet()); // Professional security headers
 const allowedOrigins = [
   process.env.FRONTEND_URL,
@@ -52,7 +52,6 @@ app.use(cors({
 
 // Handle preflight requests for all routes
 app.options('*', cors());
-app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 
 const uploadsDir = process.env.VERCEL 

@@ -94,8 +94,8 @@ router.get("/complaints", requireAuth, requireRole("authority"), async (req, res
     }));
 
     return res.json({ complaints: mappedComplaints });
-  } catch {
-    return res.status(500).json({ message: "Server error" });
+  } catch (err) {
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
