@@ -108,9 +108,20 @@ export function CitizenApp({ token, user }) {
             <button className="btn" type="button" onClick={() => setFile(null)} disabled={!file}>Clear</button>
           </div>
           <div className="text-xs text-slate-400">{file?.name || "No file chosen"}</div>
-          {err && <div className="text-sm text-red-300">{err}</div>}
-          {msg && <div className="text-sm text-emerald-200">{msg}</div>}
-          <button className="btn btn-primary w-full" disabled={loading} type="submit">{loading ? "Submitting..." : "Submit"}</button>
+          {err && <div className="text-sm text-red-400 font-medium bg-red-400/10 p-3 rounded-xl border border-red-400/20">{err}</div>}
+          {msg && <div className="text-sm text-emerald-300 font-medium bg-emerald-400/10 p-3 rounded-xl border border-emerald-400/20">{msg}</div>}
+          <button 
+            className={`btn btn-primary w-full py-4 text-lg font-bold transition-all ${loading ? 'opacity-70 scale-[0.98]' : 'hover:scale-[1.01]'}`} 
+            disabled={loading} 
+            type="submit"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="animate-spin h-5 w-5 border-2 border-white/30 border-t-white rounded-full" />
+                Submitting Complaint...
+              </span>
+            ) : "Submit Complaint"}
+          </button>
         </form>
       </div>
 
@@ -120,7 +131,15 @@ export function CitizenApp({ token, user }) {
           <button className="btn" onClick={loadMine}>Refresh</button>
         </div>
         <div className="grid gap-4">
-          {complaints.length === 0 ? <div className="text-sm text-slate-400">No complaints yet</div> : complaints.map((c) => (
+          {complaints.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center glass rounded-2xl border-dashed border-2 border-white/10">
+              <div className="text-4xl mb-4">📝</div>
+              <div className="text-xl font-semibold text-slate-200">No complaints filed yet</div>
+              <p className="text-sm text-slate-400 mt-2 max-w-[250px]">
+                You haven't filed any complaints yet. Use the form on the left to report an issue in your community!
+              </p>
+            </div>
+          ) : complaints.map((c) => (
             <div key={c._id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
               <div className="flex justify-between font-semibold">
                 <span>{c.title}</span>
@@ -132,12 +151,27 @@ export function CitizenApp({ token, user }) {
               <StatusStepper currentStatus={c.status} />
               {c.statusHistory && c.statusHistory.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-white/5">
-                  <div className="text-[10px] uppercase text-slate-500 font-bold mb-2">History</div>
-                  {c.statusHistory.slice().reverse().map((h, i) => (
-                    <div key={i} className="text-xs mb-1">
-                      <span className="font-bold text-slate-300">{h.step}</span>: {h.note}
-                    </div>
-                  ))}
+                  <div className="text-[10px] uppercase text-slate-500 font-bold mb-2">History Log</div>
+                  <div className="space-y-2">
+                    {c.statusHistory
+                      .slice()
+                      .reverse()
+                      .filter((h, i, arr) => {
+                        // Keep if it has a custom note (longer than default) or if it's the first in the list
+                        if (i === 0) return true;
+                        const isAuto = h.note === `Status changed to ${h.step}`;
+                        // If it's just an auto message and the next one (newer) is also the same step, hide it
+                        if (isAuto && arr[i-1].step === h.step) return false;
+                        return true;
+                      })
+                      .slice(0, 5) // Show only last 5 to keep it clean
+                      .map((h, i) => (
+                        <div key={i} className="flex gap-3 text-xs">
+                          <div className="w-20 shrink-0 font-bold text-slate-400">{h.step}</div>
+                          <div className="text-slate-300 italic">{h.note}</div>
+                        </div>
+                      ))}
+                  </div>
                 </div>
               )}
             </div>

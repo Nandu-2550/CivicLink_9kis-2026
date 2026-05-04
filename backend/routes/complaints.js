@@ -68,16 +68,16 @@ router.post("/", requireAuth, requireRole("citizen"), upload.single("file"), asy
       attachmentUrl: citizenImage
     });
 
-    // Notify the citizen that their complaint was received
-    try {
-      const citizenUser = await User.findById(req.user.userId);
+    // Notify the citizen that their complaint was received (Non-blocking)
+    User.findById(req.user.userId).then(citizenUser => {
       if (citizenUser && citizenUser.email) {
-        // Await to ensure it completes before Vercel freezes, but in a separate try/catch
-        await sendComplaintFiledEmail(citizenUser.email, complaint);
+        sendComplaintFiledEmail(citizenUser.email, complaint).catch(err => {
+          console.error("[ComplaintCreation] Async email dispatch failed:", err.message);
+        });
       }
-    } catch (emailErr) {
-      console.error("[ComplaintCreation] Failed to send confirmation email:", emailErr.message);
-    }
+    }).catch(err => {
+      console.error("[ComplaintCreation] User lookup for email failed:", err.message);
+    });
 
     return res.status(201).json({ complaint });
   } catch (err) {
@@ -161,29 +161,36 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
     }
 
     // Update logic
+    const isStatusChanging = complaint.status !== status;
+    const isCustomNote = note && String(note).trim() !== "" && !String(note).includes(`Status changed to ${status}`);
+
+    if (isStatusChanging || isCustomNote) {
+      if (!Array.isArray(complaint.statusHistory)) complaint.statusHistory = [];
+      complaint.statusHistory.push({ 
+        step: status, 
+        note: String(note || `Status changed to ${status}`).trim(), 
+        date: new Date() 
+      });
+    }
+
     complaint.status = status;
     complaint.currentStage = status;
-    if (!Array.isArray(complaint.statusHistory)) complaint.statusHistory = [];
-    complaint.statusHistory.push({ step: status, note: String(note || "").trim(), date: new Date() });
-
     await complaint.save();
     console.log(`[StatusUpdate] DB Save Successful for: ${req.params.id}`);
 
-    // Send email notification
-    try {
-      const citizenUser = await User.findById(complaint.citizen);
-      
+    // Send email notification (Non-blocking)
+    User.findById(complaint.citizen).then(citizenUser => {
       if (citizenUser && citizenUser.email) {
-        console.log(`[StatusUpdate] Checkpoint: Found citizen email: ${citizenUser.email}. Sending now...`);
-        await sendStatusUpdateEmail(citizenUser.email, complaint, status);
-        console.log(`[StatusUpdate] Checkpoint: Email function call completed.`);
+        console.log(`[StatusUpdate] Async Checkpoint: Found citizen email: ${citizenUser.email}. Dispatching...`);
+        sendStatusUpdateEmail(citizenUser.email, complaint, status).catch(err => {
+          console.error("[StatusUpdate] Async email dispatch failed:", err.message);
+        });
       } else {
-        console.error(`[StatusUpdate] Checkpoint: Citizen or email missing in DB for ID: ${complaint.citizen}`);
+        console.error(`[StatusUpdate] Async Checkpoint: Citizen or email missing in DB for ID: ${complaint.citizen}`);
       }
-    } catch (err) {
-      console.error("[StatusUpdate] Checkpoint: Email dispatch failed with error:", err.message);
-      if (err.stack) console.error(err.stack);
-    }
+    }).catch(err => {
+      console.error("[StatusUpdate] Async User lookup failed:", err.message);
+    });
 
     return res.json({
       message: "Status updated successfully",

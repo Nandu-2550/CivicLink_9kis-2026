@@ -4,6 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const helmet = require("helmet");
+const dotenv = require("dotenv");
 const { validateEnv } = require("./config/env");
 
 dotenv.config();

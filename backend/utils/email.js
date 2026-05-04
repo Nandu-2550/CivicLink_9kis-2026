@@ -22,10 +22,15 @@ async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
   
   try {
     const loginLink = process.env.FRONTEND_URL || "https://civic-link-9kis-2026.vercel.app/";
-    const emailUser = process.env.EMAIL_USER;
-    const emailPass = process.env.EMAIL_PASS;
+    if (!process.env.FRONTEND_URL) {
+      console.warn("[EmailService] FRONTEND_URL missing in environment variables. Falling back to default.");
+    }
+
+    const emailUser = process.env.EMAIL_USER?.trim();
+    const emailPass = process.env.EMAIL_PASS?.trim();
 
     if (!emailUser || !emailPass) {
+      console.error("[EmailService] CRITICAL: Email credentials missing.");
       throw new Error("Email credentials (EMAIL_USER or EMAIL_PASS) are missing in environment variables.");
     }
 
@@ -39,10 +44,19 @@ async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
         pass: emailPass,
       },
       tls: {
-        rejectUnauthorized: false // Helps in some restricted environments
+        rejectUnauthorized: false
       },
       connectionTimeout: 10000, 
     });
+
+    // Verify connection before sending
+    try {
+      await transporter.verify();
+      console.log("[EmailService] SMTP Connection verified successfully.");
+    } catch (verifyErr) {
+      console.error("[EmailService] SMTP Verification failed:", verifyErr.message);
+      throw verifyErr;
+    }
 
     const mailOptions = {
       from: `"CivicLink Support" <${emailUser}>`,
@@ -69,13 +83,13 @@ async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
       `,
     };
 
+    console.log(`[EmailService] Attempting to dispatch email to: ${toEmail}...`);
     const info = await transporter.sendMail(mailOptions);
     console.log("[EmailService] Email sent successfully. Message ID:", info.messageId);
     return info;
   } catch (error) {
-    console.error("[EmailService] Error occurred while sending email:", error.message);
+    console.error("[EmailService] FATAL Error occurred while sending email:", error.message);
     if (error.stack) console.error(error.stack);
-    // Return null or rethrow based on whether you want the parent process to handle the error
     return null;
   }
 }
@@ -90,18 +104,21 @@ async function sendComplaintFiledEmail(toEmail, complaint) {
   
   try {
     const loginLink = process.env.FRONTEND_URL || "https://civic-link-9kis-2026.vercel.app/";
+    const emailUser = process.env.EMAIL_USER?.trim();
+    const emailPass = process.env.EMAIL_PASS?.trim();
+    
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
       secure: true,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: emailUser,
+        pass: emailPass,
       },
     });
 
     const mailOptions = {
-      from: `"CivicLink Support" <${process.env.EMAIL_USER}>`,
+      from: `"CivicLink Support" <${emailUser}>`,
       to: toEmail,
       subject: `CivicLink: Complaint Received - ${complaint.title}`,
       html: `

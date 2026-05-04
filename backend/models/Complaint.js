@@ -63,4 +63,6 @@ const complaintSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+complaintSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model("Complaint", complaintSchema);

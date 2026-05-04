@@ -12,12 +12,16 @@ async function runDiagnostic() {
   
   // 1. Check Env Variables
   console.log("\n[1/4] Checking Environment Variables...");
-  const vars = ["MONGO_URI", "EMAIL_USER", "EMAIL_PASS", "JWT_SECRET"];
+  const vars = ["MONGO_URI", "EMAIL_USER", "EMAIL_PASS", "JWT_SECRET", "FRONTEND_URL"];
   vars.forEach(v => {
-    console.log(` - ${v}: ${process.env[v] ? "✅ PRESENT" : "❌ MISSING"}`);
+    const val = process.env[v];
+    console.log(` - ${v}: ${val ? "✅ PRESENT" : "❌ MISSING"}`);
+    if (v === "FRONTEND_URL" && !val) {
+      console.warn("   ⚠️  Warning: FRONTEND_URL is missing. Emails will use fallback URL.");
+    }
   });
 
-  if (!process.env.MONGO_URI) return console.error("Missing MONGO_URI");
+  if (!process.env.MONGO_URI) return console.error("❌ Missing MONGO_URI. Diagnostic aborted.");
 
   try {
     // 2. Database Connection
@@ -31,31 +35,28 @@ async function runDiagnostic() {
     
     if (!complaint) {
       console.log(" ❌ No complaints found in the database. Please file a complaint as a citizen first.");
-      process.exit(0);
-    }
-    console.log(` ✅ Found Complaint: "${complaint.title}" (ID: ${complaint._id})`);
-    console.log(`    Linked Citizen ID: ${complaint.citizen}`);
-
-    const citizen = await User.findById(complaint.citizen);
-    if (!citizen || !citizen.email) {
-      console.log(" ❌ The citizen linked to this complaint has NO EMAIL address in the DB.");
-      console.log("    Fix: Register a new citizen and file a fresh complaint.");
-      process.exit(0);
-    }
-    console.log(` ✅ Found Citizen Email: ${citizen.email}`);
-
-    // 4. Testing SMTP Dispatch
-    console.log(`\n[4/4] Attempting to send a REAL test email to ${citizen.email}...`);
-    const info = await sendStatusUpdateEmail(citizen.email, complaint, "Diagnostic Test");
-    
-    if (info) {
-      console.log("\n🎉 SUCCESS! The email was sent to the mail server.");
-      console.log("   Message ID:", info.messageId);
-      console.log("\nIf you still don't see it:");
-      console.log("1. Check the SPAM folder of " + citizen.email);
-      console.log("2. Verify that " + citizen.email + " is a real, working email address.");
     } else {
-      console.log("\n❌ FAILED. The email function returned null. Check your Gmail App Password.");
+      console.log(` ✅ Found Complaint: "${complaint.title}" (ID: ${complaint._id})`);
+      
+      const citizen = await User.findById(complaint.citizen);
+      if (!citizen || !citizen.email) {
+        console.log(" ❌ The citizen linked to this complaint has NO EMAIL address in the DB.");
+      } else {
+        console.log(` ✅ Found Citizen Email: ${citizen.email}`);
+
+        // 4. Testing SMTP Dispatch
+        console.log(`\n[4/4] Testing SMTP Connectivity & Dispatch to ${citizen.email}...`);
+        
+        // Use the utility to send
+        const info = await sendStatusUpdateEmail(citizen.email, complaint, "Diagnostic Test");
+        
+        if (info) {
+          console.log("\n🎉 SUCCESS! The email was sent to the mail server.");
+          console.log("   Message ID:", info.messageId);
+        } else {
+          console.log("\n❌ FAILED. The email function returned null. Check the console logs above for the specific error.");
+        }
+      }
     }
 
   } catch (err) {
@@ -63,6 +64,7 @@ async function runDiagnostic() {
     console.error(err.message);
     if (err.stack) console.error(err.stack);
   } finally {
+    console.log("\n=== DIAGNOSTIC COMPLETE ===");
     await mongoose.disconnect();
     process.exit(0);
   }

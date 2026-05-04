@@ -25,16 +25,21 @@ export function AuthorityApp({ token, authority }) {
   }, []);
 
   async function quickStatusUpdate(id, newStatus) {
+    if (statusUpdating[id]) return;
     setStatusUpdating((prev) => ({ ...prev, [id]: true }));
     try {
       const file = proofFile[id] || null;
-      const note = noteDraft[id] || `Status changed to ${newStatus}.`;
+      const note = noteDraft[id] || `Status changed to ${newStatus}`;
       await api.updateStatus(token, id, newStatus, note, file);
       setProofFile((s) => ({ ...s, [id]: null }));
       setNoteDraft((s) => ({ ...s, [id]: "" }));
       setShowResolutionProofUploadForId(null);
       await load();
-    } catch (ex) { setErr(ex.message); } finally { setStatusUpdating((prev) => ({ ...prev, [id]: false })); }
+    } catch (ex) { 
+      setErr(ex.message); 
+    } finally { 
+      setStatusUpdating((prev) => ({ ...prev, [id]: false })); 
+    }
   }
 
   return (
@@ -76,9 +81,27 @@ export function AuthorityApp({ token, authority }) {
                     </div>
                   ) : (
                     <div className="grid gap-2 sm:grid-cols-3">
-                      <button className="btn text-xs" onClick={() => quickStatusUpdate(c._id, "Under Review")}>Under Review</button>
-                      <button className="btn text-xs" onClick={() => quickStatusUpdate(c._id, "In Progress")}>In Progress</button>
-                      <button className="btn btn-primary text-xs" onClick={() => setShowResolutionProofUploadForId(c._id)}>Resolve</button>
+                      <button 
+                        className="btn text-xs" 
+                        onClick={() => quickStatusUpdate(c._id, "Under Review")}
+                        disabled={statusUpdating[c._id]}
+                      >
+                        {statusUpdating[c._id] ? "..." : "Under Review"}
+                      </button>
+                      <button 
+                        className="btn text-xs" 
+                        onClick={() => quickStatusUpdate(c._id, "In Progress")}
+                        disabled={statusUpdating[c._id]}
+                      >
+                        {statusUpdating[c._id] ? "..." : "In Progress"}
+                      </button>
+                      <button 
+                        className="btn btn-primary text-xs" 
+                        onClick={() => setShowResolutionProofUploadForId(c._id)}
+                        disabled={statusUpdating[c._id]}
+                      >
+                        Resolve
+                      </button>
                     </div>
                   )}
                   <textarea 
