@@ -15,7 +15,13 @@ export function AuthorityAuth({ onAuthed }) {
     setErr("");
     setLoading(true);
     try {
-      const data = await api.authorityLogin(form);
+      const payload = { 
+        email: form.email, 
+        password: form.password, 
+        deptCode: form.deptCode, 
+        category: form.category 
+      };
+      const data = await api.authorityLogin(payload);
       onAuthed({ token: data.token, authority: data.authority });
     } catch (ex) {
       setErr(ex.message);

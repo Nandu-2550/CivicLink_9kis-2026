@@ -236,4 +236,24 @@ router.get("/:id", requireAuth, async (req, res) => {
   }
 });
 
+// DELETE /api/complaints/:id - Citizen deletes their own complaint
+router.delete("/:id", requireAuth, requireRole("citizen"), async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ message: "Complaint not found" });
+
+    // Verify ownership
+    if (complaint.citizen.toString() !== req.user.userId) {
+      return res.status(403).json({ message: "Not authorized to delete this complaint" });
+    }
+
+    await Complaint.findByIdAndDelete(req.params.id);
+    return res.json({ message: "Complaint deleted successfully" });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error("Delete complaint error:", errorMessage);
+    return res.status(500).json({ message: "Server error", error: errorMessage });
+  }
+});
+
 module.exports = router;

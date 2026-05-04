@@ -19,8 +19,24 @@ const notificationRoutes = require("./routes/notifications");
 const app = express();
 
 app.use(helmet()); // Professional security headers
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "https://civic-link-9kis-2026.vercel.app", 
+  "https://civic-link-9kis-2026-peeh.vercel.app",
+  "http://localhost:5173", 
+  "http://localhost:3000"
+].filter(Boolean);
+
 app.use(cors({
-  origin: ["https://civic-link-9kis-2026.vercel.app", "http://localhost:5173", "http://localhost:3000"],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes("*")) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: true

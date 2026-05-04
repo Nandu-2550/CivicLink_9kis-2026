@@ -4,15 +4,22 @@ const EFFECTIVE_BASE = API_BASE_URL;
 
 async function apiFetch(path, { token, method, body, isForm } = {}) {
   const headers = {};
-  if (!isForm) headers["Content-Type"] = "application/json";
+  if (!isForm) {
+    headers["Content-Type"] = "application/json";
+    headers["Accept"] = "application/json";
+  }
   if (token) headers.Authorization = `Bearer ${token}`;
 
+  const fetchOptions = {
+    method: method || (body ? "POST" : "GET"),
+    headers,
+    body: body ? (isForm ? body : JSON.stringify(body)) : undefined
+  };
+
+  // console.log(`[API] Fetching ${path}`, { method: fetchOptions.method, headers });
+
   try {
-    const res = await fetch(`${EFFECTIVE_BASE}${path}`, {
-      method: method || (body ? "POST" : "GET"),
-      headers,
-      body: body ? (isForm ? body : JSON.stringify(body)) : undefined
-    });
+    const res = await fetch(`${EFFECTIVE_BASE}${path}`, fetchOptions);
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -53,6 +60,8 @@ export const api = {
     if (file) form.append("resolutionProof", file);
     return apiFetch(`/api/complaints/${id}/status`, { token, method: "PUT", body: form, isForm: true });
   },
+  // Delete complaint
+  deleteComplaint: (token, id) => apiFetch(`/api/complaints/${id}`, { token, method: "DELETE" }),
   // Get single complaint details
   getComplaint: (token, id) => apiFetch(`/api/complaints/${id}`, { token })
 };

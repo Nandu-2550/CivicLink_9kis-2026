@@ -85,6 +85,19 @@ export function CitizenApp({ token, user }) {
     } catch (ex) { setErr(ex.message); } finally { setLoading(false); }
   }
 
+  async function handleDelete(id) {
+    if (!window.confirm("Are you sure you want to delete this complaint? This cannot be undone.")) return;
+    setLoading(true);
+    try {
+      await api.deleteComplaint(token, id);
+      await loadMine();
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-5">
       <CameraModal open={cameraOpen} onClose={() => setCameraOpen(false)} onCapture={(f) => setFile(f)} />
@@ -141,9 +154,18 @@ export function CitizenApp({ token, user }) {
             </div>
           ) : complaints.map((c) => (
             <div key={c._id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="flex justify-between font-semibold">
+              <div className="flex justify-between items-start font-semibold">
                 <span>{c.title}</span>
-                <span className="text-xs glass px-2 py-1 rounded-full">{c.category}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs glass px-2 py-1 rounded-full">{c.category}</span>
+                  <button 
+                    className="text-red-400 hover:text-red-300 transition-colors" 
+                    onClick={() => handleDelete(c._id)}
+                    title="Delete Complaint"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  </button>
+                </div>
               </div>
               <div className="mt-2 text-sm text-slate-300">{c.description}</div>
               <ImagePanel title="Evidence" imageUrl={c.citizenImage || c.attachmentUrl} />

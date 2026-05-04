@@ -17,14 +17,11 @@ function parseCodes() {
 }
 
 router.post("/login", async (req, res) => {
-  const { category, deptCode, secretCode, email, password } = req.body || {};
-  const code = deptCode || secretCode;
-
-  console.log(`[AuthorityLogin] Attempt for ${category} by ${email}`);
-
+  console.log("[HandshakeAudit] Payload arriving on Render:", req.body);
+  const { category, deptCode, email, password } = req.body || {};
+  
   if (!email || !password) return res.status(400).json({ message: "Error: Email and Password are required" });
-  if (!category) return res.status(400).json({ message: "Error: Category is required" });
-  if (!code) return res.status(400).json({ message: "Error: Department Secret Code is required" });
+  if (!deptCode) return res.status(400).json({ message: "Error: Department Secret Code is required" });
 
   try {
     // 1. Verify User Credentials
@@ -34,33 +31,36 @@ router.post("/login", async (req, res) => {
     const isMatch = await bcrypt.compare(String(password), user.passwordHash);
     if (!isMatch) return res.status(401).json({ message: "Authentication Failed: Incorrect password" });
 
-    // 2. Verify Department Category
-    if (!CATEGORIES.includes(category)) {
-      return res.status(400).json({ message: "Error: Invalid department category" });
-    }
-
-    // 3. Verify Department Secret Code
+    // 2. Verify Department Secret Code (Case-Insensitive)
     const codes = parseCodes();
-    const expected = codes[category];
+    
+    // Check if the provided code exists as a value in our configuration
+    const normalizedInput = String(deptCode).toUpperCase().trim();
+    
+    // Find if any category has this code
+    const matchingCategory = Object.keys(codes).find(key => 
+      String(codes[key]).toUpperCase().trim() === normalizedInput
+    );
 
-    if (!expected) {
-      return res.status(401).json({ message: "Error: No secret code configured for this department" });
+    if (!matchingCategory) {
+      return res.status(401).json({ message: "Authentication Failed: Invalid Department Secret Code" });
     }
 
-    if (String(code) !== String(expected)) {
-      return res.status(401).json({ message: "Authentication Failed: Incorrect Department Secret Code" });
-    }
+    // Optional: If a category was provided in the frontend, we can verify it matches
+    // but the instruction says to check if it exists as a value in the object.
+    // We will trust the code's associated category.
+    const effectiveCategory = matchingCategory;
 
-    // 4. Issue Authority Token
+    // 3. Issue Authority Token
     const token = jwt.sign(
-      { role: "authority", category, userId: user._id.toString() },
+      { role: "authority", category: effectiveCategory, userId: user._id.toString() },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
     );
 
     return res.json({ 
       token, 
-      authority: { category, name: user.name },
+      authority: { category: effectiveCategory, name: user.name },
       message: "Authority authentication successful"
     });
   } catch (err) {
