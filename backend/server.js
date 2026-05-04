@@ -23,6 +23,7 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
   "https://civic-link-9kis-2026.vercel.app", 
   "https://civic-link-9kis-2026-peeh.vercel.app",
+  "https://civic-link-9kis-2026-1j2y-o5jg8pn96.vercel.app",
   "http://localhost:5173", 
   "http://localhost:3000"
 ].filter(Boolean);
@@ -31,16 +32,26 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes("*")) {
+    
+    // Check if origin is in whitelist or is a Vercel preview deployment
+    const isAllowed = allowedOrigins.includes(origin);
+    const isVercelPreview = origin.startsWith("https://civic-link-9kis-2026");
+    
+    if (isAllowed || isVercelPreview || allowedOrigins.includes("*")) {
       callback(null, true);
     } else {
+      console.warn(`[CORS] Blocked origin: ${origin}`);
       callback(new Error("Not allowed by CORS"));
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  credentials: true
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  credentials: true,
+  maxAge: 86400 // Cache preflight response for 24 hours
 }));
+
+// Handle preflight requests for all routes
+app.options('*', cors());
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 
