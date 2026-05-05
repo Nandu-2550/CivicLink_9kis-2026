@@ -13,18 +13,17 @@ function createTransporter() {
   return nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
-    secure: false, // Must be false for 587
+    secure: false, // Required for 587
     auth: {
       user: emailUser,
       pass: emailPass,
     },
     tls: {
-      rejectUnauthorized: false,
+      rejectUnauthorized: false, // Bypasses certificate handshake issues
       minVersion: "TLSv1.2"
     },
-    connectionTimeout: 10000, // Stop waiting after 10 seconds
-    greetingTimeout: 10000,
-    family: 4 // Force IPv4
+    connectionTimeout: 20000, // 20 seconds is enough to fail fast
+    greetingTimeout: 20000
   });
 }
 
@@ -56,7 +55,7 @@ async function sendWelcomeEmail(toEmail, name) {
     console.log("[EmailService] Welcome email sent to:", toEmail);
     return info;
   } catch (error) {
-    console.error("[EmailService] Error sending welcome email:", error.message);
+    console.error("[EmailService] Error sending welcome email:", error);
     throw error;
   }
 }
@@ -89,7 +88,7 @@ async function sendOTPEmail(toEmail, otp) {
     console.log("OTP Status:", info.response);
     return info;
   } catch (error) {
-    console.error("[EmailService] Error sending OTP email:", error.message);
+    console.error("[EmailService] Error sending OTP email:", error);
     throw error; // Ensure the backend returns 500 if email fails
   }
 }
@@ -123,7 +122,7 @@ async function sendComplaintFiledEmail(toEmail, complaint) {
     console.log("[EmailService] Complaint filing confirmation sent to:", toEmail);
     return info;
   } catch (error) {
-    console.error("[EmailService] Error sending filing confirmation:", error.message);
+    console.error("[EmailService] Error sending filing confirmation:", error);
     throw error;
   }
 }
@@ -160,7 +159,7 @@ async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
     console.log("[EmailService] Status update email sent to:", toEmail);
     return info;
   } catch (error) {
-    console.error("[EmailService] Error sending status update email:", error.message);
+    console.error("[EmailService] Error sending status update email:", error);
     throw error;
   }
 }
