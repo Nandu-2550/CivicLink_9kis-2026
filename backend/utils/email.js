@@ -7,7 +7,7 @@ require("dotenv").config();
  */
 async function sendEmailViaBrevo(toEmail, subject, htmlContent) {
   const apiKey = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.EMAIL_USER || "noreply@civiclink.com";
+  const senderEmail = "nandunusgavai@gmail.com"; // Verified email in Brevo
 
   if (!apiKey) {
     console.error("[EmailService] ERROR: BREVO_API_KEY is missing in .env");
