@@ -6,30 +6,10 @@ const Notification = require("../models/Notification");
 const { routeCategory } = require("../utils/aiRouter");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { createCloudinaryStorage } = require("../config/cloudinary");
-const { sendStatusUpdateEmail, sendComplaintFiledEmail } = require("../utils/email");
+const { sendNotification } = require("../utils/notificationService");
 const User = require("../models/User");
 
 const router = express.Router();
-
-// Test route to debug email issues
-router.get("/test-email", async (req, res) => {
-  try {
-    const mockComplaint = {
-      _id: "test-id",
-      title: "Test Email Verification"
-    };
-    // Use the optimized utility
-    const info = await sendStatusUpdateEmail(process.env.EMAIL_USER, mockComplaint, "Testing");
-    
-    if (info) {
-      res.json({ success: true, message: "Email sent successfully!", info });
-    } else {
-      res.status(500).json({ success: false, message: "Email dispatch failed. Check server logs." });
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message, stack: error.stack });
-  }
-});
 
 const cloudinaryStorage = createCloudinaryStorage("civiclink/citizen-proofs");
 const upload = multer({ storage: cloudinaryStorage, limits: { fileSize: 10 * 1024 * 1024 } });
@@ -42,14 +22,14 @@ router.post("/", requireAuth, requireRole("citizen"), upload.single("file"), asy
     const category = await routeCategory(description);
     const citizenImage = req.file ? (req.file.path || req.file.secure_url || req.file.url || "") : "";
 
-    const parsedLocation = { lat: null, lng: null, formattedAddress: "" };
+    const parsedLocation = { lat: null, lng: null, address: "" };
     if (rawLocation) {
       try {
         const parsed = JSON.parse(String(rawLocation));
         if (typeof parsed === "object" && parsed !== null) {
           parsedLocation.lat = parsed.lat !== undefined && parsed.lat !== null && parsed.lat !== "" ? Number(parsed.lat) : null;
           parsedLocation.lng = parsed.lng !== undefined && parsed.lng !== null && parsed.lng !== "" ? Number(parsed.lng) : null;
-          parsedLocation.formattedAddress = String(parsed.formattedAddress || "").trim();
+          parsedLocation.address = String(parsed.address || parsed.formattedAddress || "").trim();
         }
       } catch {
         // ignore invalid JSON and fall back to individual fields
@@ -70,13 +50,13 @@ router.post("/", requireAuth, requireRole("citizen"), upload.single("file"), asy
 
     // Notify the citizen that their complaint was received (Non-blocking)
     User.findById(req.user.userId).then(citizenUser => {
-      if (citizenUser && citizenUser.email) {
-        sendComplaintFiledEmail(citizenUser.email, complaint).catch(err => {
-          console.error("[ComplaintCreation] Async email dispatch failed:", err.message);
+      if (citizenUser) {
+        sendNotification(citizenUser, 'COMPLAINT_FILED', { title: complaint.title, id: complaint._id }).catch(err => {
+          console.error("[ComplaintCreation] Async notification dispatch failed:", err.message);
         });
       }
     }).catch(err => {
-      console.error("[ComplaintCreation] User lookup for email failed:", err.message);
+      console.error("[ComplaintCreation] User lookup for notification failed:", err.message);
     });
 
     return res.status(201).json({ complaint });
@@ -103,7 +83,7 @@ router.get("/mine", requireAuth, requireRole("citizen"), async (req, res) => {
       citizenImage: c.citizenImage || c.attachmentUrl || "",
       authorityImage: c.authorityImage || "",
       resolutionProof: c.authorityImage || c.resolutionProof || "",
-      location: c.location || { lat: null, lng: null, formattedAddress: "" },
+      location: c.location || { lat: null, lng: null, address: "" },
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
       attachmentUrl: c.attachmentUrl || c.citizenImage || ""
@@ -117,23 +97,18 @@ router.get("/mine", requireAuth, requireRole("citizen"), async (req, res) => {
   }
 });
 
-// Cloudinary storage for resolution proof images
 const resolutionCloudinaryStorage = createCloudinaryStorage("civiclink/resolution-proofs");
 const cloudinaryUpload = multer({ storage: resolutionCloudinaryStorage, limits: { fileSize: 10 * 1024 * 1024 } });
 
-// PUT /api/complaints/:id/status - Authority updates complaint status
 router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next) => {
   cloudinaryUpload.single("resolutionProof")(req, res, async (err) => {
     if (err instanceof multer.MulterError) {
-      // A Multer error occurred when uploading.
       console.error("Multer error during resolutionProof upload:", err.message, err);
       return res.status(400).json({ message: `File upload error: ${err.message}` });
     } else if (err) {
-      // An unknown error occurred when uploading (e.g., from Cloudinary storage engine).
       console.error("Unknown error during resolutionProof upload:", err.message, err);
       return res.status(500).json({ message: "Server error during file upload", error: err.message });
     }
-    // If no error from Multer, proceed to the route handler logic
     next();
   });
 }, async (req, res) => {
@@ -145,7 +120,6 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
       return res.status(400).json({ message: "Invalid status. Must be one of: " + validStatuses.join(", ") });
     }
 
-    // Checkpoint 1: Request received
     console.log(`[StatusUpdate] Received update for ID: ${req.params.id} to Status: ${status}`);
 
     const complaint = await Complaint.findById(req.params.id);
@@ -154,13 +128,11 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
       return res.status(404).json({ message: "Complaint not found" });
     }
 
-    // Security Check
     if (req.user.role === "authority" && req.user.category && complaint.category !== req.user.category) {
       console.warn(`[StatusUpdate] Security Alert: Authority ${req.user.category} tried to access ${complaint.category}`);
       return res.status(403).json({ message: `Forbidden...` });
     }
 
-    // Update logic
     const isStatusChanging = complaint.status !== status;
     const isCustomNote = note && String(note).trim() !== "" && !String(note).includes(`Status changed to ${status}`);
 
@@ -178,19 +150,15 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
     await complaint.save();
     console.log(`[StatusUpdate] DB Save Successful for: ${req.params.id}`);
 
-    // Send email notification (Awaited for reliability on Render)
     try {
       const citizenUser = await User.findById(complaint.citizen);
-      if (!citizenUser || !citizenUser.email) {
-        throw new Error("Citizen email not found in database for ID: " + complaint.citizen);
+      if (citizenUser) {
+        console.log(`[StatusUpdate] Dispatching notification to citizen: ${citizenUser.email || citizenUser.phone}`);
+        await sendNotification(citizenUser, 'STATUS_UPDATE', { title: complaint.title, newStatus: status });
+        console.log(`[StatusUpdate] Notification dispatch successful for: ${req.params.id}`);
       }
-
-      console.log(`[StatusUpdate] Found citizen email: ${citizenUser.email}. Dispatching...`);
-      await sendStatusUpdateEmail(citizenUser.email, complaint, status);
-      console.log(`[StatusUpdate] Email dispatch successful for: ${req.params.id}`);
-    } catch (emailErr) {
-      console.error("[StatusUpdate] Email dispatch failed:", emailErr.message);
-      // We don't fail the entire request if email fails, but we log it heavily
+    } catch (notifErr) {
+      console.error("[StatusUpdate] Notification dispatch failed:", notifErr.message);
     }
 
     return res.json({
@@ -205,23 +173,21 @@ router.put("/:id/status", requireAuth, requireRole("authority"), (req, res, next
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error("Status update error:", errorMessage, err); // Log the error message and full error object
+    console.error("Status update error:", errorMessage, err);
     return res.status(500).json({ message: "Server error", error: errorMessage });
   }
 });
 
-// GET /api/complaints/:id - Get single complaint details
 router.get("/:id", requireAuth, async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
-      .populate("citizen", "name email")
+      .populate("citizen", "name email phone")
       .lean();
 
     if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
     }
 
-    // Check if user is authorized to view
     const isCitizen = complaint.citizen._id.toString() === req.user.userId;
     const isAuthority = req.user.role === "authority";
 
@@ -230,20 +196,18 @@ router.get("/:id", requireAuth, async (req, res) => {
     }
 
     return res.json({ complaint });
-  } catch (err) { // Added 'err' parameter
+  } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     console.error("Get single complaint error:", errorMessage, err);
     return res.status(500).json({ message: "Server error", error: errorMessage });
   }
 });
 
-// DELETE /api/complaints/:id - Citizen deletes their own complaint
 router.delete("/:id", requireAuth, requireRole("citizen"), async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id);
     if (!complaint) return res.status(404).json({ message: "Complaint not found" });
 
-    // Verify ownership
     if (complaint.citizen.toString() !== req.user.userId) {
       return res.status(403).json({ message: "Not authorized to delete this complaint" });
     }

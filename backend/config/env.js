@@ -10,6 +10,7 @@ function validateEnv() {
     "CLOUDINARY_CLOUD_NAME",
     "CLOUDINARY_API_KEY",
     "CLOUDINARY_API_SECRET",
+    "SMS_SENDER_NAME",
     "AUTHORITY_CODES_JSON"
   ];
 

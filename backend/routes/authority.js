@@ -64,7 +64,7 @@ router.get("/complaints", requireAuth, requireRole("authority"), async (req, res
   try {
     // Authorities see complaints matching their category
     const complaints = await Complaint.find({ category: req.user.category })
-      .populate("citizen", "name email")
+      .populate("citizen", "name email phone")
       .sort({ createdAt: -1 });
 
     const mappedComplaints = complaints.map(c => ({
@@ -77,7 +77,7 @@ router.get("/complaints", requireAuth, requireRole("authority"), async (req, res
       citizenImage: c.citizenImage || c.attachmentUrl || "",
       authorityImage: c.authorityImage || "",
       resolutionProof: c.authorityImage || c.resolutionProof || "",
-      location: c.location || { lat: null, lng: null, formattedAddress: "" },
+      location: c.location || { lat: null, lng: null, address: "" },
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
       citizen: c.citizen,

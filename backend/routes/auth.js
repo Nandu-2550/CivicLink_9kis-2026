@@ -2,65 +2,111 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const { sendWelcomeEmail, sendOTPEmail } = require("../utils/email");
+const { sendNotification } = require("../utils/notificationService");
 
 const router = express.Router();
 
 function signToken(user) {
   return jwt.sign(
-    { role: "citizen", userId: user._id.toString(), email: user.email },
+    { 
+      role: "citizen", 
+      userId: user._id.toString(), 
+      email: user.email || "", 
+      phone: user.phone || "" 
+    },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
   );
 }
 
+// REGISTER - Unified (Email or Phone)
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body || {};
-    if (!name || !email || !password) return res.status(400).json({ message: "Missing fields" });
-    if (String(password).length < 6) return res.status(400).json({ message: "Password too short" });
+    const { name, email, phone, password } = req.body || {};
+    if (!name || (!email && !phone) || !password) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
 
-    const normalizedEmail = String(email).toLowerCase().trim();
-    const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) return res.status(409).json({ message: "Email already registered" });
+    if (String(password).length < 6) {
+      return res.status(400).json({ message: "Password too short" });
+    }
+
+    const query = [];
+    if (email) query.push({ email: email.toLowerCase().trim() });
+    if (phone) query.push({ phone: phone.trim() });
+
+    const existing = await User.findOne({ $or: query });
+    if (existing) {
+      return res.status(409).json({ message: "Account already exists with this email or phone" });
+    }
 
     const passwordHash = await bcrypt.hash(String(password), 10);
-    const user = await User.create({ name: String(name).trim(), email: normalizedEmail, passwordHash });
+    const userData = { 
+      name: name.trim(), 
+      passwordHash 
+    };
+    if (email) userData.email = email.toLowerCase().trim();
+    if (phone) userData.phone = phone.trim();
 
-    // Trigger Welcome Email (Async)
-    sendWelcomeEmail(user.email, user.name).catch(console.error);
+    const user = await User.create(userData);
 
-    return res.json({ token: signToken(user), user: { id: user._id, name: user.name, email: user.email } });
+    // Send Welcome Notification
+    sendNotification(user, 'WELCOME').catch(console.error);
+
+    return res.json({ 
+      token: signToken(user), 
+      user: { id: user._id, name: user.name, email: user.email, phone: user.phone } 
+    });
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
+// LOGIN - Unified (Email or Phone)
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body || {};
-    if (!email || !password) return res.status(400).json({ message: "Missing fields" });
+    const { identifier, password } = req.body || {}; // identifier can be email or phone
+    if (!identifier || !password) {
+      return res.status(400).json({ message: "Missing fields" });
+    }
 
-    const user = await User.findOne({ email: String(email).toLowerCase().trim() });
+    const cleanId = identifier.trim();
+    const user = await User.findOne({ 
+      $or: [
+        { email: cleanId.toLowerCase() },
+        { phone: cleanId }
+      ]
+    });
+
     if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
     const ok = await bcrypt.compare(String(password), user.passwordHash);
     if (!ok) return res.status(401).json({ message: "Invalid credentials" });
 
-    return res.json({ token: signToken(user), user: { id: user._id, name: user.name, email: user.email } });
+    return res.json({ 
+      token: signToken(user), 
+      user: { id: user._id, name: user.name, email: user.email, phone: user.phone } 
+    });
   } catch (err) {
     return res.status(400).json({ message: "Bad Request", error: err.message });
   }
 });
 
-// FORGOT PASSWORD - Step 1: Send OTP
+// FORGOT PASSWORD - Step 1: Send OTP (Unified)
 router.post("/forgot-password", async (req, res) => {
   try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ message: "Email is required" });
+    const { identifier } = req.body;
+    if (!identifier) return res.status(400).json({ message: "Email or Phone is required" });
 
-    const user = await User.findOne({ email: String(email).toLowerCase().trim() });
-    if (!user) return res.status(404).json({ message: "User with this email not found" });
+    const cleanId = identifier.trim();
+    const user = await User.findOne({ 
+      $or: [
+        { email: cleanId.toLowerCase() },
+        { phone: cleanId }
+      ]
+    });
+
+    if (!user) return res.status(404).json({ message: "Account not found" });
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -70,32 +116,39 @@ router.post("/forgot-password", async (req, res) => {
     user.otpExpires = otpExpires;
     await user.save();
 
-    // Send Email
-    await sendOTPEmail(user.email, otp);
+    // Send Notification (Will detect if email or phone is present)
+    await sendNotification(user, 'OTP', { otp });
 
-    return res.json({ message: "OTP sent to your email" });
+    return res.json({ message: `OTP sent to your ${user.phone && cleanId === user.phone ? 'phone' : 'email'}` });
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
-// RESET PASSWORD - Step 2: Verify OTP and update password
+// RESET PASSWORD - Step 2: Verify OTP
 router.post("/reset-password", async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
-    if (!email || !otp || !newPassword) return res.status(400).json({ message: "All fields are required" });
+    const { identifier, otp, newPassword } = req.body;
+    if (!identifier || !otp || !newPassword) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
 
+    const cleanId = identifier.trim();
     const user = await User.findOne({ 
-      email: String(email).toLowerCase().trim(),
+      $or: [
+        { email: cleanId.toLowerCase() },
+        { phone: cleanId }
+      ],
       otp,
       otpExpires: { $gt: new Date() }
     });
 
     if (!user) return res.status(400).json({ message: "Invalid or expired OTP" });
 
-    if (String(newPassword).length < 6) return res.status(400).json({ message: "Password too short" });
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ message: "Password too short" });
+    }
 
-    // Update password
     user.passwordHash = await bcrypt.hash(String(newPassword), 10);
     user.otp = undefined;
     user.otpExpires = undefined;
