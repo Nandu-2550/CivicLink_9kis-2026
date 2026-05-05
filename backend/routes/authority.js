@@ -77,7 +77,7 @@ router.get("/complaints", requireAuth, requireRole("authority"), async (req, res
       citizenImage: c.citizenImage || c.attachmentUrl || "",
       authorityImage: c.authorityImage || "",
       resolutionProof: c.authorityImage || c.resolutionProof || "",
-      location: c.location || { lat: null, lng: null, formattedAddress: "" },
+      location: c.location || { lat: null, lng: null, address: "" },
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
       citizen: c.citizen,

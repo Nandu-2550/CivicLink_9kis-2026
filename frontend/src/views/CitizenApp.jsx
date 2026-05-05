@@ -3,9 +3,10 @@ import { api } from "../api";
 import { CameraModal } from "../components/CameraModal";
 import { ImagePanel } from "../components/ImagePanel";
 import { StatusStepper } from "../components/StatusStepper";
+import { LocationPicker } from "../components/LocationPicker";
 
 export function CitizenApp({ token, user }) {
-  const [gps, setGps] = useState({ lat: null, lng: null, accuracyM: null, updatedAt: null, status: "idle" });
+  const [gps, setGps] = useState({ lat: null, lng: null, address: "", status: "idle" });
   const [file, setFile] = useState(null);
   const [form, setForm] = useState({ title: "", description: "" });
   const [loading, setLoading] = useState(false);
@@ -15,6 +16,7 @@ export function CitizenApp({ token, user }) {
   const [gpsErrorHint, setGpsErrorHint] = useState("");
   const gpsWatchIdRef = useRef(null);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
 
   const predicted = useMemo(() => {
     const d = (form.description || "").toLowerCase();
@@ -56,11 +58,11 @@ export function CitizenApp({ token, user }) {
     stopWatchingLocation();
     gpsWatchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
-        setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracyM: pos.coords.accuracy, updatedAt: Date.now(), status: "ok" });
+        setGps((prev) => ({ ...prev, lat: pos.coords.latitude, lng: pos.coords.longitude, status: "ok" }));
       },
       (e) => {
         const denied = e && (e.code === 1);
-        setGps({ lat: null, lng: null, status: denied ? "denied" : "error" });
+        setGps((prev) => ({ ...prev, lat: null, lng: null, status: denied ? "denied" : "error" }));
         setGpsErrorHint(denied ? "Location permission denied." : "Unable to read location.");
         stopWatchingLocation();
       },
@@ -77,10 +79,11 @@ export function CitizenApp({ token, user }) {
     e.preventDefault();
     setLoading(true); setErr(""); setMsg("");
     try {
-      const loc = { lat: gps.lat, lng: gps.lng, formattedAddress: "" };
+      const loc = { lat: gps.lat, lng: gps.lng, address: gps.address };
       await api.fileComplaint({ token, title: form.title, description: form.description, location: loc, file });
       setMsg("Complaint filed successfully.");
       setForm({ title: "", description: "" }); setFile(null);
+      setGps({ lat: null, lng: null, address: "", status: "idle" });
       await loadMine();
     } catch (ex) { setErr(ex.message); } finally { setLoading(false); }
   }
@@ -106,13 +109,43 @@ export function CitizenApp({ token, user }) {
         <form className="mt-5 space-y-3" onSubmit={submitComplaint}>
           <input className="input" placeholder="Title" value={form.title} onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))} />
           <textarea className="input min-h-[120px]" placeholder="Description" value={form.description} onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} />
+          
+          <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Location Tracking</span>
+              <button className="btn btn-primary text-[10px] py-1 px-3" type="button" onClick={() => setMapOpen(!mapOpen)}>
+                {mapOpen ? "Hide Map" : "Select on Map"}
+              </button>
+            </div>
+            
+            {mapOpen && (
+              <LocationPicker 
+                initialLocation={{ lat: gps.lat, lng: gps.lng }} 
+                onLocationSelect={(loc) => setGps((prev) => ({ ...prev, ...loc, status: "ok" }))}
+              />
+            )}
+            
+            <div className="text-xs text-slate-300">
+              {gps.address ? (
+                <div className="flex flex-col gap-1 p-2 bg-emerald-400/5 border border-emerald-400/10 rounded-lg">
+                  <span className="text-emerald-400 font-bold">Selected Location:</span>
+                  <span className="italic">{gps.address}</span>
+                </div>
+              ) : gps.status === "ok" ? (
+                <div className="flex justify-between items-center">
+                  <span>GPS Ready: {gps.lat?.toFixed(4)}, {gps.lng?.toFixed(4)}</span>
+                  <button type="button" onClick={startWatchingLocation} className="text-blue-400 hover:underline">Refresh</button>
+                </div>
+              ) : (
+                <span className="text-slate-500 italic">No location selected. Use "Select on Map" for precision.</span>
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center justify-between gap-3 text-sm">
-            <div>Predicted: <span className="text-slate-100">{predicted}</span></div>
-            <button className="btn" onClick={startWatchingLocation} type="button">Refresh Location</button>
+            <div>Predicted Category: <span className="text-slate-100 font-bold">{predicted}</span></div>
           </div>
-          <div className="text-xs text-slate-400">
-            GPS: {gps.status === "ok" ? `${gps.lat.toFixed(4)}, ${gps.lng.toFixed(4)}` : gps.status}
-          </div>
+
           <div className="flex items-center gap-3">
             <label className="btn btn-primary cursor-pointer">
               Upload <input className="hidden" type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />

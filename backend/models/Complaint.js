@@ -41,7 +41,7 @@ const complaintSchema = new mongoose.Schema(
     location: {
       lat: { type: Number, default: null },
       lng: { type: Number, default: null },
-      formattedAddress: { type: String, default: "" }
+      address: { type: String, default: "" }
     },
     citizenImage: { type: String, default: "" },
     attachmentUrl: { type: String, default: "" },

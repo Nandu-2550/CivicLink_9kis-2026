@@ -73,6 +73,25 @@ export function AuthorityApp({ token, authority }) {
                 <div className="flex-1 italic">"{c.description}"</div>
               </div>
               <ImagePanel title="Evidence" imageUrl={c.citizenImage || c.attachmentUrl} />
+              
+              {c.location?.lat && c.location?.lng && (
+                <div className="mt-4 p-4 rounded-xl border border-blue-500/30 bg-blue-400/5">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-slate-300">
+                      <span className="font-bold text-blue-400">Location:</span> {c.location.address || `${c.location.lat.toFixed(4)}, ${c.location.lng.toFixed(4)}`}
+                    </div>
+                    <a 
+                      href={`https://www.google.com/maps?q=${c.location.lat},${c.location.lng}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="btn btn-primary text-[10px] py-1 px-3"
+                    >
+                      View on Map
+                    </a>
+                  </div>
+                </div>
+              )}
+
               <ImagePanel title="Resolution Proof" imageUrl={c.authorityImage || c.resolutionProof} />
               <StatusStepper currentStatus={c.status} />
 
