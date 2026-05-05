@@ -11,17 +11,19 @@ function createTransporter() {
   }
 
   return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
+    host: "smtp.gmail.com",
     port: 587,
-    secure: false, // TLS
+    secure: false, // Must be false for 587
     auth: {
       user: emailUser,
       pass: emailPass,
     },
     tls: {
-      ciphers: 'SSLv3',
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
+      minVersion: "TLSv1.2"
     },
+    connectionTimeout: 10000, // Stop waiting after 10 seconds
+    greetingTimeout: 10000,
     family: 4 // Force IPv4
   });
 }

@@ -106,7 +106,7 @@ export function CitizenAuth({ onAuthed }) {
         {success && <div className="text-sm text-emerald-400 bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20">{success}</div>}
 
         <button className="btn btn-primary w-full mt-6" disabled={loading} type="submit">
-          {loading ? "Processing..." : forgotStep === "email" ? "Send OTP" : "Reset Password"}
+          {loading ? (forgotStep === "email" ? "Sending..." : "Processing...") : (forgotStep === "email" ? "Send OTP" : "Reset Password")}
         </button>
       </form>
     </div>
