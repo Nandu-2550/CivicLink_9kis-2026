@@ -22,14 +22,14 @@ router.post("/", requireAuth, requireRole("citizen"), upload.single("file"), asy
     const category = await routeCategory(description);
     const citizenImage = req.file ? (req.file.path || req.file.secure_url || req.file.url || "") : "";
 
-    const parsedLocation = { lat: null, lng: null, address: "" };
+    const parsedLocation = { lat: null, lng: null, formattedAddress: "" };
     if (rawLocation) {
       try {
         const parsed = JSON.parse(String(rawLocation));
         if (typeof parsed === "object" && parsed !== null) {
           parsedLocation.lat = parsed.lat !== undefined && parsed.lat !== null && parsed.lat !== "" ? Number(parsed.lat) : null;
           parsedLocation.lng = parsed.lng !== undefined && parsed.lng !== null && parsed.lng !== "" ? Number(parsed.lng) : null;
-          parsedLocation.address = String(parsed.address || parsed.formattedAddress || "").trim();
+          parsedLocation.formattedAddress = String(parsed.formattedAddress || "").trim();
         }
       } catch {
         // ignore invalid JSON and fall back to individual fields
@@ -83,7 +83,7 @@ router.get("/mine", requireAuth, requireRole("citizen"), async (req, res) => {
       citizenImage: c.citizenImage || c.attachmentUrl || "",
       authorityImage: c.authorityImage || "",
       resolutionProof: c.authorityImage || c.resolutionProof || "",
-      location: c.location || { lat: null, lng: null, address: "" },
+      location: c.location || { lat: null, lng: null, formattedAddress: "" },
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
       attachmentUrl: c.attachmentUrl || c.citizenImage || ""
