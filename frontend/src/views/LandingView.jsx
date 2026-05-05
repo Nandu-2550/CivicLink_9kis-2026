@@ -54,7 +54,9 @@ export function LandingView({ onModeSelect, activeView, isTransitioning }) {
 
           <footer className="mt-24 py-16 border-t border-white/10 text-center">
             <div className="flex justify-center gap-12 text-slate-400 mb-8">
-              <div className="flex items-center gap-2"><Mail size={16} /> support@civiclink.com</div>
+              <a href="mailto:nandunusgavai@gmail.com" className="flex items-center gap-2 hover:text-blue-500 transition-colors cursor-pointer">
+                <Mail size={16} /> support@civiclink.com
+              </a>
               <div className="flex items-center gap-2"><Phone size={16} /> 1-800-CIVIC-LINK</div>
             </div>
             <p className="text-slate-500 text-sm">© 2026 CivicLink. Built for transparency.</p>

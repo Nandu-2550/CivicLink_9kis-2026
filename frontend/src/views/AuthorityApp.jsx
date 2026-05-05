@@ -59,11 +59,19 @@ export function AuthorityApp({ token, authority }) {
         <div className="grid gap-4">
           {complaints.map((c) => (
             <div key={c._id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="flex justify-between font-semibold">
-                <span>{c.title}</span>
-                <span className="text-xs glass px-2 py-1 rounded-full">Citizen: {c.citizen?.name}</span>
+              <div className="flex justify-between items-start gap-4">
+                <div className="font-semibold text-lg">{c.title}</div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Filed By</span>
+                  <div className="text-xs glass px-3 py-1.5 rounded-xl border border-white/10 flex flex-col items-end">
+                    <span className="font-bold text-white">{c.citizen?.name}</span>
+                    <span className="text-blue-400 font-mono text-[10px]">{c.citizen?.email}</span>
+                  </div>
+                </div>
               </div>
-              <div className="mt-2 text-sm text-slate-300">{c.description}</div>
+              <div className="mt-2 text-sm text-slate-300 flex items-start gap-2">
+                <div className="flex-1 italic">"{c.description}"</div>
+              </div>
               <ImagePanel title="Evidence" imageUrl={c.citizenImage || c.attachmentUrl} />
               <ImagePanel title="Resolution Proof" imageUrl={c.authorityImage || c.resolutionProof} />
               <StatusStepper currentStatus={c.status} />
