@@ -141,7 +141,7 @@ async function sendComplaintFiledEmail(toEmail, complaint) {
  */
 async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
   const subject = `CivicLink: Update on your complaint - ${complaint.title}`;
-  const loginLink = "https://civic-link-9kis-2026-peeh.vercel.app/login";
+  const loginLink = "https://civic-link-9kis-2026.vercel.app/login";
   const htmlContent = `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333;">
       <h2 style="color: #2563eb;">Status Updated</h2>

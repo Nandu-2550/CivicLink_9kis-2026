@@ -1,10 +1,23 @@
+import { motion } from 'framer-motion';
 import { Zap, Eye, Shield, TrendingUp, Mail, Phone, MapPin } from 'lucide-react';
 
 export function LandingView({ onModeSelect, activeView, isTransitioning }) {
   return (
     <div className="max-w-7xl mx-auto">
       <div className={`text-center transition-all duration-700 animate-fade-in ${activeView !== "landing" ? "mb-8 opacity-60 scale-90" : "mb-12"}`}>
-        <img src="/logo.png" alt="CivicLink" className={`mx-auto mb-6 object-contain animate-logo-pulse transition-all duration-1000 ${activeView !== "landing" ? "h-16" : "h-32"}`} />
+        <motion.img 
+          src="/logo.png" 
+          alt="CivicLink" 
+          animate={{ 
+            filter: [
+              "drop-shadow(0 0 10px rgba(37, 99, 235, 0.3))", 
+              "drop-shadow(0 0 30px rgba(16, 185, 129, 0.5))", 
+              "drop-shadow(0 0 10px rgba(37, 99, 235, 0.3))"
+            ] 
+          }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          className={`mx-auto mb-6 object-contain transition-all duration-1000 ${activeView !== "landing" ? "h-16" : "h-32 md:h-48"}`} 
+        />
         <h1 className={`font-bold mb-4 gradient-text transition-all duration-1000 animate-reveal ${activeView !== "landing" ? "text-4xl" : "text-6xl md:text-8xl"}`}>CivicLink</h1>
         {activeView === "landing" && (
           <div className="animate-slide-up-in">
