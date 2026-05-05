@@ -1,76 +1,68 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
 const Complaint = require("../models/Complaint");
 const { requireAuth, requireRole } = require("../middleware/auth");
-const { CATEGORIES } = require("../utils/aiRouter");
-const User = require("../models/User");
 
 const router = express.Router();
 
 function parseCodes() {
   try {
+    // Expected format: {"Police": "CODE1", "Traffic": "CODE2", ...}
     return JSON.parse(process.env.AUTHORITY_CODES_JSON || "{}");
   } catch {
+    console.error("Failed to parse AUTHORITY_CODES_JSON");
     return {};
   }
 }
 
 router.post("/login", async (req, res) => {
-  console.log("[HandshakeAudit] Payload arriving on Render:", req.body);
-  const { category, deptCode, email, password } = req.body || {};
+  const { deptCode } = req.body || {};
   
-  if (!email || !password) return res.status(400).json({ message: "Error: Email and Password are required" });
-  if (!deptCode) return res.status(400).json({ message: "Error: Department Secret Code is required" });
+  if (!deptCode) {
+    return res.status(400).json({ message: "Department Secret Code is required" });
+  }
 
   try {
-    // 1. Verify User Credentials
-    const user = await User.findOne({ email: String(email).toLowerCase().trim() });
-    if (!user) return res.status(401).json({ message: "Authentication Failed: User not found" });
-
-    const isMatch = await bcrypt.compare(String(password), user.passwordHash);
-    if (!isMatch) return res.status(401).json({ message: "Authentication Failed: Incorrect password" });
-
-    // 2. Verify Department Secret Code (Case-Insensitive)
     const codes = parseCodes();
+    const normalizedInput = String(deptCode).trim();
     
-    // Check if the provided code exists as a value in our configuration
-    const normalizedInput = String(deptCode).toUpperCase().trim();
-    
-    // Find if any category has this code
+    // Find matching category by value
     const matchingCategory = Object.keys(codes).find(key => 
-      String(codes[key]).toUpperCase().trim() === normalizedInput
+      String(codes[key]).trim() === normalizedInput
     );
 
     if (!matchingCategory) {
-      return res.status(401).json({ message: "Authentication Failed: Invalid Department Secret Code" });
+      return res.status(401).json({ message: "Invalid Department Secret Code" });
     }
 
-    // Optional: If a category was provided in the frontend, we can verify it matches
-    // but the instruction says to check if it exists as a value in the object.
-    // We will trust the code's associated category.
-    const effectiveCategory = matchingCategory;
-
-    // 3. Issue Authority Token
+    // Issue Authority Token
+    // We keep role: "authority" for middleware compatibility
+    // but the instruction mentioned using dept name as role, 
+    // so we'll ensure category is set to the dept name.
     const token = jwt.sign(
-      { role: "authority", category: effectiveCategory, userId: user._id.toString() },
+      { 
+        role: "authority", 
+        category: matchingCategory, 
+        userId: "authority-" + matchingCategory // Shared ID for the team
+      },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
     );
 
     return res.json({ 
       token, 
-      authority: { category: effectiveCategory, name: user.name },
-      message: "Authority authentication successful"
+      authority: { category: matchingCategory, name: matchingCategory + " Department" },
+      message: "Authority access granted"
     });
   } catch (err) {
     console.error("Authority login error:", err);
-    return res.status(500).json({ message: "Internal server error during authentication" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 });
 
 router.get("/complaints", requireAuth, requireRole("authority"), async (req, res) => {
   try {
+    // Authorities see complaints matching their category
     const complaints = await Complaint.find({ category: req.user.category })
       .populate("citizen", "name email")
       .sort({ createdAt: -1 });
