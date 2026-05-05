@@ -10,16 +10,19 @@ function createTransporter() {
     return null;
   }
 
-  // Simplified transporter configuration to bypass handshake/timeout issues
   return nodemailer.createTransport({
-    service: "gmail",
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // TLS
     auth: {
       user: emailUser,
       pass: emailPass,
     },
     tls: {
-      rejectUnauthorized: false // This helps bypass network blocks on Render
-    }
+      ciphers: 'SSLv3',
+      rejectUnauthorized: false
+    },
+    family: 4 // Force IPv4
   });
 }
 
@@ -28,7 +31,7 @@ function createTransporter() {
  */
 async function sendWelcomeEmail(toEmail, name) {
   const transporter = createTransporter();
-  if (!transporter) return;
+  if (!transporter) throw new Error("Failed to create email transporter");
 
   const mailOptions = {
     from: `"CivicLink" <${process.env.EMAIL_USER}>`,
@@ -47,10 +50,12 @@ async function sendWelcomeEmail(toEmail, name) {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
     console.log("[EmailService] Welcome email sent to:", toEmail);
+    return info;
   } catch (error) {
     console.error("[EmailService] Error sending welcome email:", error.message);
+    throw error;
   }
 }
 
@@ -59,7 +64,7 @@ async function sendWelcomeEmail(toEmail, name) {
  */
 async function sendOTPEmail(toEmail, otp) {
   const transporter = createTransporter();
-  if (!transporter) return;
+  if (!transporter) throw new Error("Failed to create email transporter");
 
   const mailOptions = {
     from: `"CivicLink Support" <${process.env.EMAIL_USER}>`,
@@ -78,10 +83,12 @@ async function sendOTPEmail(toEmail, otp) {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log("[EmailService] OTP email sent to:", toEmail);
+    const info = await transporter.sendMail(mailOptions);
+    console.log("OTP Status:", info.response);
+    return info;
   } catch (error) {
     console.error("[EmailService] Error sending OTP email:", error.message);
+    throw error; // Ensure the backend returns 500 if email fails
   }
 }
 
@@ -90,7 +97,7 @@ async function sendOTPEmail(toEmail, otp) {
  */
 async function sendComplaintFiledEmail(toEmail, complaint) {
   const transporter = createTransporter();
-  if (!transporter) return;
+  if (!transporter) throw new Error("Failed to create email transporter");
 
   const mailOptions = {
     from: `"CivicLink Support" <${process.env.EMAIL_USER}>`,
@@ -110,10 +117,12 @@ async function sendComplaintFiledEmail(toEmail, complaint) {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
     console.log("[EmailService] Complaint filing confirmation sent to:", toEmail);
+    return info;
   } catch (error) {
     console.error("[EmailService] Error sending filing confirmation:", error.message);
+    throw error;
   }
 }
 
@@ -122,7 +131,7 @@ async function sendComplaintFiledEmail(toEmail, complaint) {
  */
 async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
   const transporter = createTransporter();
-  if (!transporter) return;
+  if (!transporter) throw new Error("Failed to create email transporter");
 
   const loginLink = "https://civic-link-9kis-2026-peeh.vercel.app/login";
 
@@ -145,10 +154,12 @@ async function sendStatusUpdateEmail(toEmail, complaint, newStatus) {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
     console.log("[EmailService] Status update email sent to:", toEmail);
+    return info;
   } catch (error) {
     console.error("[EmailService] Error sending status update email:", error.message);
+    throw error;
   }
 }
 
