@@ -10,18 +10,15 @@ function createTransporter() {
     return null;
   }
 
-  // Use Port 587 and service: 'gmail' as requested to avoid ENETUNREACH/Timeout
+  // Simplified transporter configuration to bypass handshake/timeout issues
   return nodemailer.createTransport({
     service: "gmail",
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false, // TLS
     auth: {
       user: emailUser,
       pass: emailPass,
     },
     tls: {
-      rejectUnauthorized: false
+      rejectUnauthorized: false // This helps bypass network blocks on Render
     }
   });
 }
