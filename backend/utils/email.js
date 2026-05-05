@@ -13,17 +13,18 @@ function createTransporter() {
   return nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
-    secure: false, // Required for 587
+    secure: false,
     auth: {
       user: emailUser,
-      pass: emailPass,
+      pass: emailPass
     },
     tls: {
-      rejectUnauthorized: false, // Bypasses certificate handshake issues
+      rejectUnauthorized: false,
       minVersion: "TLSv1.2"
     },
-    connectionTimeout: 20000, // 20 seconds is enough to fail fast
-    greetingTimeout: 20000
+    connectionTimeout: 40000,
+    greetingTimeout: 40000,
+    socketTimeout: 40000
   });
 }
 
@@ -82,6 +83,8 @@ async function sendOTPEmail(toEmail, otp) {
       </div>
     `
   };
+ 
+  console.log(`[EmailService] Generated OTP for ${toEmail}: ${otp}`);
 
   try {
     const info = await transporter.sendMail(mailOptions);
