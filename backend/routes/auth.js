@@ -24,20 +24,28 @@ router.post("/register", async (req, res) => {
   try {
     const { name, email, phone, password } = req.body || {};
     if (!name || (!email && !phone) || !password) {
-      return res.status(400).json({ message: "Missing required fields" });
+      return res.status(400).json({ message: "Name, Password, and at least one contact method (Email or Phone) are required" });
     }
 
     if (String(password).length < 6) {
-      return res.status(400).json({ message: "Password too short" });
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
     const query = [];
-    if (email) query.push({ email: email.toLowerCase().trim() });
-    if (phone) query.push({ phone: phone.trim() });
+    let cleanEmail = email ? email.toLowerCase().trim() : null;
+    let cleanPhone = phone ? phone.replace(/\D/g, "") : null;
+
+    if (cleanEmail) query.push({ email: cleanEmail });
+    if (cleanPhone) {
+      if (cleanPhone.length !== 10) {
+        return res.status(400).json({ message: "Phone number must be exactly 10 digits" });
+      }
+      query.push({ phone: cleanPhone });
+    }
 
     const existing = await User.findOne({ $or: query });
     if (existing) {
-      return res.status(409).json({ message: "Account already exists with this email or phone" });
+      return res.status(409).json({ message: "An account already exists with this email or phone number" });
     }
 
     const passwordHash = await bcrypt.hash(String(password), 10);
@@ -45,13 +53,13 @@ router.post("/register", async (req, res) => {
       name: name.trim(), 
       passwordHash 
     };
-    if (email) userData.email = email.toLowerCase().trim();
-    if (phone) userData.phone = phone.trim();
+    if (cleanEmail) userData.email = cleanEmail;
+    if (cleanPhone) userData.phone = cleanPhone;
 
     const user = await User.create(userData);
 
     // Send Welcome Notification
-    sendNotification(user, 'WELCOME').catch(console.error);
+    sendNotification(user, 'WELCOME').catch(err => console.error("[Auth] Welcome Notification Error:", err.message));
 
     return res.json({ 
       token: signToken(user), 
@@ -65,18 +73,26 @@ router.post("/register", async (req, res) => {
 // LOGIN - Unified (Email or Phone)
 router.post("/login", async (req, res) => {
   try {
-    const { identifier, password } = req.body || {}; // identifier can be email or phone
+    const { identifier, password } = req.body || {};
     if (!identifier || !password) {
-      return res.status(400).json({ message: "Missing fields" });
+      return res.status(400).json({ message: "Identifier and password are required" });
     }
 
     const cleanId = identifier.trim();
-    const user = await User.findOne({ 
-      $or: [
-        { email: cleanId.toLowerCase() },
-        { phone: cleanId }
-      ]
-    });
+    let user;
+
+    if (cleanId.includes("@")) {
+      // Treat as email
+      user = await User.findOne({ email: cleanId.toLowerCase() });
+    } else {
+      // Treat as phone if it's 10 digits
+      const phoneOnly = cleanId.replace(/\D/g, "");
+      if (phoneOnly.length === 10) {
+        user = await User.findOne({ phone: phoneOnly });
+      } else {
+        return res.status(400).json({ message: "Please enter a valid email or 10-digit phone number" });
+      }
+    }
 
     if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
@@ -88,7 +104,7 @@ router.post("/login", async (req, res) => {
       user: { id: user._id, name: user.name, email: user.email, phone: user.phone } 
     });
   } catch (err) {
-    return res.status(400).json({ message: "Bad Request", error: err.message });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
@@ -99,14 +115,18 @@ router.post("/forgot-password", async (req, res) => {
     if (!identifier) return res.status(400).json({ message: "Email or Phone is required" });
 
     const cleanId = identifier.trim();
-    const user = await User.findOne({ 
-      $or: [
-        { email: cleanId.toLowerCase() },
-        { phone: cleanId }
-      ]
-    });
+    let user;
 
-    if (!user) return res.status(404).json({ message: "Account not found" });
+    if (cleanId.includes("@")) {
+      user = await User.findOne({ email: cleanId.toLowerCase() });
+    } else {
+      const phoneOnly = cleanId.replace(/\D/g, "");
+      if (phoneOnly.length === 10) {
+        user = await User.findOne({ phone: phoneOnly });
+      }
+    }
+
+    if (!user) return res.status(404).json({ message: "No account found with that identifier" });
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -116,10 +136,10 @@ router.post("/forgot-password", async (req, res) => {
     user.otpExpires = otpExpires;
     await user.save();
 
-    // Send Notification (Will detect if email or phone is present)
+    // Send Notification (Dual delivery handled by service)
     await sendNotification(user, 'OTP', { otp });
 
-    return res.json({ message: `OTP sent to your ${user.phone && cleanId === user.phone ? 'phone' : 'email'}` });
+    return res.json({ message: "Verification code sent successfully" });
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -134,19 +154,24 @@ router.post("/reset-password", async (req, res) => {
     }
 
     const cleanId = identifier.trim();
-    const user = await User.findOne({ 
-      $or: [
-        { email: cleanId.toLowerCase() },
-        { phone: cleanId }
-      ],
-      otp,
-      otpExpires: { $gt: new Date() }
-    });
+    let query = { otp, otpExpires: { $gt: new Date() } };
 
+    if (cleanId.includes("@")) {
+      query.email = cleanId.toLowerCase();
+    } else {
+      const phoneOnly = cleanId.replace(/\D/g, "");
+      if (phoneOnly.length === 10) {
+        query.phone = phoneOnly;
+      } else {
+        return res.status(400).json({ message: "Invalid identifier" });
+      }
+    }
+
+    const user = await User.findOne(query);
     if (!user) return res.status(400).json({ message: "Invalid or expired OTP" });
 
     if (String(newPassword).length < 6) {
-      return res.status(400).json({ message: "Password too short" });
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
     user.passwordHash = await bcrypt.hash(String(newPassword), 10);

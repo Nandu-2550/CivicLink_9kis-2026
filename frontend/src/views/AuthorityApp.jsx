@@ -75,18 +75,24 @@ export function AuthorityApp({ token, authority }) {
               <ImagePanel title="Evidence" imageUrl={c.citizenImage || c.attachmentUrl} />
               
               {c.location?.lat && c.location?.lng && (
-                <div className="mt-4 p-4 rounded-xl border border-blue-500/30 bg-blue-400/5">
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs text-slate-300">
-                      <span className="font-bold text-blue-400">Location:</span> {c.location.address || `${c.location.lat.toFixed(4)}, ${c.location.lng.toFixed(4)}`}
+                <div className="mt-4 p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 backdrop-blur-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="text-[10px] uppercase tracking-widest text-blue-400 font-bold mb-1">Incident Location</div>
+                      <div className="text-sm text-white font-mono flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                        {c.location.lat.toFixed(6)}, {c.location.lng.toFixed(6)}
+                      </div>
+                      {c.location.address && <div className="text-xs text-slate-400 mt-1 italic">{c.location.address}</div>}
                     </div>
                     <a 
                       href={`https://www.google.com/maps?q=${c.location.lat},${c.location.lng}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="btn btn-primary text-[10px] py-1 px-3"
+                      className="btn btn-primary text-[10px] py-2 px-4 shadow-lg shadow-blue-500/20 flex items-center gap-2"
                     >
-                      View on Map
+                      <span>View Map</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                     </a>
                   </div>
                 </div>

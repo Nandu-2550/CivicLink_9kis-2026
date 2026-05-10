@@ -29,11 +29,26 @@ export function CitizenAuth({ onAuthed }) {
         setSuccess("Password reset successful! Please login.");
         setTab("login");
       } else {
-        const data =
-          tab === "login"
-            ? await api.login({ identifier: form.identifier, password: form.password })
-            : await api.register({ name: form.name, email: form.email, phone: form.phone, password: form.password });
-        onAuthed({ token: data.token, user: data.user });
+        if (tab === "signup") {
+          if (!form.email && !form.phone) {
+            throw new Error("Please provide either an Email or a Phone Number");
+          }
+          if (form.phone && form.phone.replace(/\D/g, "").length !== 10) {
+            throw new Error("Phone number must be exactly 10 digits");
+          }
+          await api.register({ name: form.name, email: form.email, phone: form.phone, password: form.password });
+          // Auto login after signup
+          const data = await api.login({ identifier: form.email || form.phone, password: form.password });
+          onAuthed({ token: data.token, user: data.user });
+        } else {
+          // Validation for login identifier
+          const cleanId = form.identifier.trim();
+          if (!cleanId.includes("@") && cleanId.replace(/\D/g, "").length !== 10) {
+            throw new Error("Please enter a valid email or 10-digit phone number");
+          }
+          const data = await api.login({ identifier: cleanId, password: form.password });
+          onAuthed({ token: data.token, user: data.user });
+        }
       }
     } catch (ex) {
       setErr(ex.message);
@@ -56,7 +71,7 @@ export function CitizenAuth({ onAuthed }) {
       </h3>
       <p className="text-white/40 text-sm mb-6">
         {forgotStep === "identifier" 
-          ? "Enter your email or phone number and we'll send you a 6-digit code." 
+          ? "Enter your email or 10-digit phone number." 
           : `We've sent a code to ${form.identifier}`}
       </p>
 
@@ -146,20 +161,20 @@ export function CitizenAuth({ onAuthed }) {
                 </div>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={18} />
-                  <input className="input pl-12" type="email" placeholder="Email (Optional)" value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} />
+                  <input className="input pl-12" type="email" placeholder="Email Address" value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} />
                 </div>
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={18} />
-                  <input className="input pl-12" type="tel" placeholder="Phone Number (Optional)" value={form.phone} onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))} />
+                  <input className="input pl-12" type="tel" placeholder="10-Digit Phone Number" value={form.phone} onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))} maxLength={10} />
                 </div>
-                <p className="text-[10px] text-white/30 px-1">Provide at least one: Email or Phone.</p>
+                <p className="text-[10px] text-white/40 px-1 italic">Provide at least one: Email or Phone for notifications.</p>
               </>
             )}
             
             {tab === "login" && (
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={18} />
-                <input className="input pl-12" type="text" placeholder="Email or Phone Number" value={form.identifier} onChange={(e) => setForm((s) => ({ ...s, identifier: e.target.value }))} required />
+                <input className="input pl-12" type="text" placeholder="Email or 10-Digit Phone" value={form.identifier} onChange={(e) => setForm((s) => ({ ...s, identifier: e.target.value }))} required />
               </div>
             )}
 

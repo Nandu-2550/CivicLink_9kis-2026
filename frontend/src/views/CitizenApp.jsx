@@ -79,13 +79,37 @@ export function CitizenApp({ token, user }) {
     e.preventDefault();
     setLoading(true); setErr(""); setMsg("");
     try {
-      const loc = { lat: gps.lat, lng: gps.lng, address: gps.address };
+      // Ensure we have GPS before submitting
+      let finalLat = gps.lat;
+      let finalLng = gps.lng;
+
+      if (!finalLat || !finalLng) {
+        // One last attempt to get location if not ready
+        await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              finalLat = pos.coords.latitude;
+              finalLng = pos.coords.longitude;
+              resolve();
+            },
+            (err) => reject(new Error("Location is required to file a complaint. Please enable GPS.")),
+            { enableHighAccuracy: true, timeout: 5000 }
+          );
+        });
+      }
+
+      const loc = { lat: finalLat, lng: finalLng, address: gps.address };
       await api.fileComplaint({ token, title: form.title, description: form.description, location: loc, file });
+      
       setMsg("Complaint filed successfully.");
       setForm({ title: "", description: "" }); setFile(null);
-      setGps({ lat: null, lng: null, address: "", status: "idle" });
+      // Don't reset GPS entirely, keep it watching for next
       await loadMine();
-    } catch (ex) { setErr(ex.message); } finally { setLoading(false); }
+    } catch (ex) { 
+      setErr(ex.message); 
+    } finally { 
+      setLoading(false); 
+    }
   }
 
   async function handleDelete(id) {
@@ -107,37 +131,34 @@ export function CitizenApp({ token, user }) {
       <div className="glass rounded-2xl p-6 lg:col-span-2">
         <div className="text-xl font-semibold">File Complaint</div>
         <form className="mt-5 space-y-3" onSubmit={submitComplaint}>
-          <input className="input" placeholder="Title" value={form.title} onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))} />
-          <textarea className="input min-h-[120px]" placeholder="Description" value={form.description} onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} />
+          <input className="input" placeholder="Title" value={form.title} onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))} required />
+          <textarea className="input min-h-[120px]" placeholder="Detailed description of the issue..." value={form.description} onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} required />
           
-          <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Location Tracking</span>
-              <button className="btn btn-primary text-[10px] py-1 px-3" type="button" onClick={() => setMapOpen(!mapOpen)}>
-                {mapOpen ? "Hide Map" : "Select on Map"}
-              </button>
+          <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${gps.status === 'ok' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></span>
+                Live GPS Location
+              </span>
+              {gps.status !== 'ok' && (
+                <button type="button" onClick={startWatchingLocation} className="text-[10px] text-blue-400 hover:underline">
+                  Enable GPS
+                </button>
+              )}
             </div>
             
-            {mapOpen && (
-              <LocationPicker 
-                initialLocation={{ lat: gps.lat, lng: gps.lng }} 
-                onLocationSelect={(loc) => setGps((prev) => ({ ...prev, ...loc, status: "ok" }))}
-              />
-            )}
-            
-            <div className="text-xs text-slate-300">
-              {gps.address ? (
-                <div className="flex flex-col gap-1 p-2 bg-emerald-400/5 border border-emerald-400/10 rounded-lg">
-                  <span className="text-emerald-400 font-bold">Selected Location:</span>
-                  <span className="italic">{gps.address}</span>
-                </div>
-              ) : gps.status === "ok" ? (
-                <div className="flex justify-between items-center">
-                  <span>GPS Ready: {gps.lat?.toFixed(4)}, {gps.lng?.toFixed(4)}</span>
-                  <button type="button" onClick={startWatchingLocation} className="text-blue-400 hover:underline">Refresh</button>
+            <div className="text-xs">
+              {gps.status === "ok" ? (
+                <div className="flex justify-between items-center text-slate-300">
+                  <span className="font-mono bg-white/5 px-2 py-1 rounded">
+                    {gps.lat?.toFixed(5)}, {gps.lng?.toFixed(5)}
+                  </span>
+                  <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-wider">Locked</span>
                 </div>
               ) : (
-                <span className="text-slate-500 italic">No location selected. Use "Select on Map" for precision.</span>
+                <div className="text-red-400 italic bg-red-400/5 p-2 rounded border border-red-400/10">
+                  {gpsErrorHint || "Waiting for GPS signal..."}
+                </div>
               )}
             </div>
           </div>
